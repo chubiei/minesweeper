@@ -5,6 +5,21 @@
 
 class MineGame {
     public:
+        enum State {
+            STATE_EMPTY, 
+            STATE_FLAGGED,
+            STATE_MINE_0,
+            STATE_MINE_1,
+            STATE_MINE_2,
+            STATE_MINE_3,
+            STATE_MINE_4,
+            STATE_MINE_5,
+            STATE_MINE_6,
+            STATE_MINE_7,
+            STATE_MINE_8
+        };
+
+    public:
         MineGame();
         ~MineGame();
 
@@ -18,13 +33,13 @@ class MineGame {
         void SetExpert();
         void SetCustom(int width, int height, int mine_count);
 
-        int PlaceFlag(int x, int y);
-        int RemoveFlag(int x, int y);
-        int Flip(int x, int y);
-        int Peek(int x, int y);
+        void TouchFlag(int x, int y);
+        void Open(int x, int y);
+        void OpenFast(int x, int y);
 
     private:
-        void InitMines(int mine_count);
+        void InitMines(int skip_x, int skip_y);
+        bool HasMine(int x, int y);
         int AllocateMap(int width, int height);
         void FreeMap();
 
@@ -33,8 +48,12 @@ class MineGame {
         int height;
         int mine_count;
         int flag_count;
+        // -2: unknown, -1: mine, 0: no mines, 1: 1 mine, 2: 2 mines, etc...
         int **mine_map;
-        int **flag_map;
+
+        // represent user interface state
+        int **state_map;
+        bool init;
 };
 
 
