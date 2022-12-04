@@ -5,6 +5,13 @@
 #define __MINE_GAME_H__
 
 enum MineGameState {
+    GAME_READY,
+    GAME_RUNNING, 
+    GAME_WON,
+    GAME_LOST
+};
+
+enum MineGameGridState {
     STATE_COVERED, 
     STATE_FLAGGED,
     STATE_FLAGGED_WRONG, 
@@ -23,7 +30,7 @@ enum MineGameState {
 
 class MineGameEvent {
     public:
-        MineGameState state;
+        MineGameGridState state;
         int x;
         int y;
 
@@ -49,7 +56,8 @@ class MineGame {
         void SetExpert();
         void SetCustom(int width, int height, int mine_count);
 
-        MineGameState GetState(int x, int y);
+        MineGameState GetGameState();
+        MineGameGridState GetGridState(int x, int y);
         void TouchFlag(int x, int y, std::vector<MineGameEvent> &events);
         void Open(int x, int y, std::vector<MineGameEvent> &events);
         void OpenFast(int x, int y, std::vector<MineGameEvent> &events);
@@ -60,7 +68,9 @@ class MineGame {
         int AllocateMap(int width, int height);
         void FreeMap();
 
-        MineGameState UpdateState(int x, int y);
+        void UpdateStateDirectly(int x, int y, MineGameGridState state);
+        MineGameGridState UpdateStateAutomatically(int x, int y);
+        
         void ShowAllMines(std::vector<MineGameEvent> &events);
         void OpenRecursive(int x, int y, std::vector<MineGameEvent> &events);
         bool IsValidPoint(int x, int y);
@@ -70,12 +80,13 @@ class MineGame {
         int height;
         int mine_count;
         int flag_count;
+        int remaining_count;
         // -2: unknown, -1: mine, 0: no mines, 1: 1 mine, 2: 2 mines, etc...
         int **mine_map;
 
         // represent user interface state
-        MineGameState **state_map;
-        bool init;
+        MineGameGridState **state_map;
+        MineGameState game_state;
 };
 
 
