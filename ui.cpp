@@ -113,6 +113,7 @@ int MineGameWindowUI::ProcessEvents()
 int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
 {
     MineGameState old_state = this->game->GetGameState();
+    int old_flag_count = this->game->GetFlagCount();
 
     // mouse motion
     if (base_event->type == SDL_MOUSEMOTION) {
@@ -142,6 +143,7 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
     }    
 
     MineGameState new_state = this->game->GetGameState();
+    int new_flag_count = this->game->GetFlagCount();
     
     if (old_state == MineGameState::GAME_READY && new_state == MineGameState::GAME_RUNNING) {
         this->time_counter->AddTimer(1);
@@ -151,6 +153,11 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
     } else if (new_state == MineGameState::GAME_LOST) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_LOSE);
         this->time_counter->RemoveTimer();
+    }
+
+    if (old_flag_count != new_flag_count) {
+        this->mine_counter->SetCount(this->game->GetMineCount() - new_flag_count);
+        this->mine_counter->Redraw();
     }
 
     return 0;
@@ -221,10 +228,13 @@ void MineGameWindowUI::GameTouchFlag(int x, int y, std::vector<MineGameEvent> &e
 void MineGameWindowUI::GameReset()
 {
     this->game->Reset();
+
     this->mine_grid->SetGameSize(this->game->GetWidth(), this->game->GetHeight());
     this->mine_grid->Redraw();
+
     this->time_counter->SetCount(0);
     this->time_counter->Redraw();
+
     this->mine_counter->SetCount(this->game->GetFlagCount());
     this->mine_counter->Redraw();
 }
@@ -824,7 +834,6 @@ int FaceButtonUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
             } else if (event->type == SDL_MOUSEBUTTONUP) {
                 this->SetStatus(FaceButtonUI::STATUS_FACE_UNPRESSED);
                 this->window->GameReset();
-                // FIXME: 
             }
        }
     }
