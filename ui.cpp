@@ -60,8 +60,6 @@ int MineGameWindowUI::CreateComponents()
     // show window 
     //SDL_ShowWindow(this->window);
 
-    this->time_counter->AddTimer(1);
-
     return 0;
 }
 
@@ -114,6 +112,8 @@ int MineGameWindowUI::ProcessEvents()
 
 int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
 {
+    MineGameState old_state = this->game->GetGameState();
+
     // mouse motion
     if (base_event->type == SDL_MOUSEMOTION) {
         SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)base_event;
@@ -140,6 +140,18 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
         this->time_counter->HandleUserEvent(e);
 
     }    
+
+    MineGameState new_state = this->game->GetGameState();
+    
+    if (old_state == MineGameState::GAME_READY && new_state == MineGameState::GAME_RUNNING) {
+        this->time_counter->AddTimer(1);
+    } else if (new_state == MineGameState::GAME_WON) {
+        this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_WIN);
+        this->time_counter->RemoveTimer();
+    } else if (new_state == MineGameState::GAME_LOST) {
+        this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_LOSE);
+        this->time_counter->RemoveTimer();
+    }
 
     return 0;
 }
@@ -194,6 +206,27 @@ SDL_Texture *MineGameWindowUI::CreateTexture(int width, int height)
     }
 
     return texture;
+}
+
+void MineGameWindowUI::GameOpen(int x, int y, std::vector<MineGameEvent> &events)
+{
+    this->game->Open(x, y, events);
+}
+
+void MineGameWindowUI::GameTouchFlag(int x, int y, std::vector<MineGameEvent> &events)
+{
+    this->game->TouchFlag(x, y, events);
+}
+
+void MineGameWindowUI::GameReset()
+{
+    this->game->Reset();
+    this->mine_grid->SetGameSize(this->game->GetWidth(), this->game->GetHeight());
+    this->mine_grid->Redraw();
+    this->time_counter->SetCount(0);
+    this->time_counter->Redraw();
+    this->mine_counter->SetCount(this->game->GetFlagCount());
+    this->mine_counter->Redraw();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -318,11 +351,6 @@ int MineGameWindowUI::UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *t
     SDL_RenderCopy(this->renderer, texture, NULL, rect);
 
     return 0;
-}
-
-MineGame * MineGameWindowUI::GetGame()
-{
-    return this->game;
 }
 
 int MineGameWindowUI::RefreshWindow()
@@ -668,6 +696,7 @@ int FaceButtonUI::LoadResources()
     this->face_pressed = this->window->LoadTextureFromFile("./images/png/face_pressed.png");
     this->face_unpressed = this->window->LoadTextureFromFile("./images/png/face_unpressed.png");
     this->face_win = this->window->LoadTextureFromFile("./images/png/face_win.png");
+    this->face_lose = this->window->LoadTextureFromFile("./images/png/face_lose.png");
 
     return 0;
 }
@@ -688,6 +717,11 @@ void FaceButtonUI::ReleaseResources()
         SDL_DestroyTexture(this->face_win);
         this->face_win = NULL;
     }
+
+    if (this->face_lose != NULL) {
+        SDL_DestroyTexture(this->face_lose);
+        this->face_lose = NULL;
+    }
 }
 
 int FaceButtonUI::Redraw()
@@ -701,8 +735,12 @@ int FaceButtonUI::Redraw()
         this->window->UpdateWindowTexture(this->face_unpressed, this->GetRect());
     }
     // win
-    else {
+    else if (this->current_status == STATUS_FACE_WIN) {
         this->window->UpdateWindowTexture(this->face_win, this->GetRect());
+    }
+    // lose
+    else {
+        this->window->UpdateWindowTexture(this->face_lose, this->GetRect());
     }
 
     return 0;
@@ -736,6 +774,7 @@ int FaceButtonUI::HandleMouseMotionEvent(SDL_MouseMotionEvent *event)
         // handle leaving with click button hold
         if (this->GetStatus() == FaceButtonUI::STATUS_FACE_PRESSED) {
             this->SetStatus(FaceButtonUI::STATUS_FACE_UNPRESSED);
+            this->window->GameReset();
         }
     }
     // entering component
@@ -784,7 +823,8 @@ int FaceButtonUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
                 this->SetStatus(FaceButtonUI::STATUS_FACE_PRESSED);
             } else if (event->type == SDL_MOUSEBUTTONUP) {
                 this->SetStatus(FaceButtonUI::STATUS_FACE_UNPRESSED);
-                // TODO: trigger something
+                this->window->GameReset();
+                // FIXME: 
             }
        }
     }
@@ -844,9 +884,10 @@ void MineGridUI::SetGameSize(int x, int y)
             SDL_DestroyTexture(this->grid_texture);
             this->grid_texture = NULL;
         }
-
-        this->InitTexture();
     }
+
+    // set game size will always trigger redraw
+    this->InitTexture();
 }
 
 const SDL_Rect *MineGridUI::GetRect() const
@@ -862,11 +903,6 @@ int MineGridUI::GetWidth() const
 int MineGridUI::GetHeight() const
 {
     return this->GetRect()->h;
-}
-
-int MineGridUI::UpdateGrid(int x, int y)
-{
-    return 0;
 }
 
 int MineGridUI::LoadResources()
@@ -1012,9 +1048,9 @@ int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
             std::vector<MineGameEvent> events;
 
             if (event->button == SDL_BUTTON_LEFT && event->type == SDL_MOUSEBUTTONUP) {
-                this->window->GetGame()->Open(index_x, index_y, events);
+                this->window->GameOpen(index_x, index_y, events);
             } else if (event->button == SDL_BUTTON_RIGHT && event->type == SDL_MOUSEBUTTONUP) {
-                this->window->GetGame()->TouchFlag(index_x, index_y, events);
+                this->window->GameTouchFlag(index_x, index_y, events);
             }   
 
             this->HandleGameEvents(events);
@@ -1036,19 +1072,19 @@ int MineGridUI::InitTexture()
         }
 
         this->grid_texture = t;
+    }
 
-        // draw grid_texture with mines
-        for (int i = 0; i < this->game_y; i++) {
-            for (int j = 0; j < this->game_x; j++) {
-                SDL_Rect rect;
+    // draw grid_texture with mines
+    for (int i = 0; i < this->game_y; i++) {
+        for (int j = 0; j < this->game_x; j++) {
+            SDL_Rect rect;
 
-                rect.x = j * MINE_GRID_MINE_SIZE + 2;
-                rect.y = i * MINE_GRID_MINE_SIZE + 2;
-                rect.w = MINE_GRID_MINE_SIZE;
-                rect.h = MINE_GRID_MINE_SIZE;
+            rect.x = j * MINE_GRID_MINE_SIZE + 2;
+            rect.y = i * MINE_GRID_MINE_SIZE + 2;
+            rect.w = MINE_GRID_MINE_SIZE;
+            rect.h = MINE_GRID_MINE_SIZE;
 
-                this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
-            }
+            this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
         }
     }
 

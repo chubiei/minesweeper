@@ -22,7 +22,9 @@ class MineGameWindowUI {
         SDL_Texture *CreateTexture(int width, int height);
         int UpdateWindowTexture(SDL_Texture *texture, const SDL_Rect *rect);
         int UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *texture, const SDL_Rect *rect);
-        MineGame * GetGame();
+        void GameOpen(int x, int y, std::vector<MineGameEvent> &events);
+        void GameTouchFlag(int x, int y, std::vector<MineGameEvent> &events);
+        void GameReset();
 
     private:
         int CreateWindow();
@@ -117,7 +119,8 @@ class FaceButtonUI {
         enum Status {
             STATUS_FACE_PRESSED = 0,
             STATUS_FACE_UNPRESSED = 1,
-            STATUS_FACE_WIN = 2
+            STATUS_FACE_WIN = 2,
+            STATUS_FACE_LOSE = 3
         };
 
     public:
@@ -149,6 +152,7 @@ class FaceButtonUI {
         SDL_Texture *face_pressed;
         SDL_Texture *face_unpressed;
         SDL_Texture *face_win;
+        SDL_Texture *face_lose;
 
         // component rect
         SDL_Rect *rect;
@@ -167,8 +171,6 @@ class MineGridUI {
         const SDL_Rect *GetRect() const;
         int GetWidth() const;
         int GetHeight() const;
-
-        int UpdateGrid(int x, int y);
 
         int LoadResources();
         void ReleaseResources();
