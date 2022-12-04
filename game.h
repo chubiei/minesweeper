@@ -61,6 +61,9 @@ class MineGame {
         void FreeMap();
 
         MineGameState UpdateState(int x, int y);
+        void ShowAllMines(std::vector<MineGameEvent> &events);
+        void OpenRecursive(int x, int y, std::vector<MineGameEvent> &events);
+        bool IsValidPoint(int x, int y);
 
     private:
         int width;

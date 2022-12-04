@@ -81,7 +81,7 @@ void MineGame::TouchFlag(int x, int y, std::vector<MineGameEvent> &events)
 
     std::cout << "MineGame::TouchFlag(x=" << x << ", y=" << y << ")" << std::endl;
 
-    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+    if (this->IsValidPoint(x, y)) {
         if (this->GetState(x, y) == STATE_COVERED) {
             this->state_map[y][x] = STATE_FLAGGED;
             this->flag_count += 1;
@@ -121,31 +121,9 @@ void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
         }
     }
 
-    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+    if (this->IsValidPoint(x, y)) {
         if (this->GetState(x, y) == STATE_COVERED) {
-            MineGameEvent e;
-
-            // explode on mine
-            if (this->mine_map[y][x] == -1) {
-                this->state_map[y][x] = MineGameState::STATE_MINE_EXPLODE;
-                e.state = MineGameState::STATE_MINE_EXPLODE;
-                e.x = x;
-                e.y = y;
-
-                events.push_back(e);
-
-                // FIXME: ending mode, open all mines
-            }
-            // open it
-            else {
-                e.state = this->UpdateState(x, y);
-                e.x = x;
-                e.y = y;
-
-                events.push_back(e);
-
-                // FIXME: open neighbors
-            }
+            this->OpenRecursive(x, y, events);
         }
     }
 }
@@ -221,7 +199,7 @@ void MineGame::InitMines(int skip_x, int skip_y)
 
 bool MineGame::HasMine(int x, int y)
 {
-    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+    if (this->IsValidPoint(x, y)) {
         if (this->mine_map[y][x] == -1) {
             return true;
         }
@@ -324,11 +302,86 @@ MineGameState MineGame::UpdateState(int x, int y)
         break;
     }
 
-    if (this->GetState(x, y) == MineGameState::STATE_COVERED) {
-        this->state_map[y][x] = state;
-    }
+    this->state_map[y][x] = state;
 
     return state;
+}
+
+void MineGame::ShowAllMines(std::vector<MineGameEvent> &events)
+{
+    // show all uncovered mines
+    for (int y = 0; y < this->height; y++) {
+        for (int x = 0; x < this->width; x++) {
+            if (this->HasMine(x, y) && this->GetState(x, y) == MineGameState::STATE_COVERED) {
+                MineGameEvent e;
+
+                e.state = MineGameState::STATE_MINE_OPEN;
+                e.x = x;
+                e.y = y;
+
+                events.push_back(e);
+            }
+        }
+    }
+}
+
+void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
+{
+    if (this->state_map[y][x] == MineGameState::STATE_COVERED || this->state_map[y][x] == MineGameState::STATE_FLAGGED) {
+        // case 1: explode on site
+        if (this->mine_map[y][x] < 0) {
+                this->state_map[y][x] = MineGameState::STATE_MINE_EXPLODE;
+
+                MineGameEvent e;
+                e.state = MineGameState::STATE_MINE_EXPLODE;
+                e.x = x;
+                e.y = y;
+                events.push_back(e);
+
+                this->ShowAllMines(events);            
+        }
+        // case 2: we stop at mine_N
+        else if (this->mine_map[y][x] > 0) {
+            MineGameEvent e;
+
+            e.state = this->UpdateState(x, y);
+            e.x = x;
+            e.y = y;
+
+            events.push_back(e);
+        } 
+        // case 3: recursively open neighbors
+        else if (this->mine_map[y][x] == 0) {
+            MineGameEvent e;
+
+            this->state_map[y][x] = MineGameState::STATE_MINE_0;
+            e.state = MineGameState::STATE_MINE_0;
+            e.x = x;
+            e.y = y;
+
+            events.push_back(e);
+
+            int up = y - 1, down = y + 1, left = x - 1, right = x + 1;
+
+            if (this->IsValidPoint(left, up)) this->OpenRecursive(left, up, events);
+            if (this->IsValidPoint(left, y)) this->OpenRecursive(left, y, events);
+            if (this->IsValidPoint(left, down)) this->OpenRecursive(left, down, events);
+            if (this->IsValidPoint(x, up)) this->OpenRecursive(x, up, events);
+            if (this->IsValidPoint(x, down)) this->OpenRecursive(x, down, events);
+            if (this->IsValidPoint(right, up)) this->OpenRecursive(right, up, events);
+            if (this->IsValidPoint(right, y)) this->OpenRecursive(right, y, events);
+            if (this->IsValidPoint(right, down)) this->OpenRecursive(right, down, events);
+        }
+    }
+}
+
+bool MineGame::IsValidPoint(int x, int y)
+{
+    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
