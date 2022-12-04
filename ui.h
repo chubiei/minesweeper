@@ -191,6 +191,7 @@ class MineGridUI {
         SDL_Texture **mine;
         SDL_Texture *mine_covered;
         SDL_Texture *mine_flagged;
+        SDL_Texture *mine_flagged_wrong;
         SDL_Texture *mine_open_black;
         SDL_Texture *mine_open_red;
 

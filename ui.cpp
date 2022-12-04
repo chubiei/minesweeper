@@ -882,6 +882,7 @@ int MineGridUI::LoadResources()
     this->mine[8] = this->window->LoadTextureFromFile("./images/png/type8.png");
     this->mine_covered = this->window->LoadTextureFromFile("./images/png/closed.png");
     this->mine_flagged = this->window->LoadTextureFromFile("./images/png/flag.png");
+    this->mine_flagged_wrong = this->window->LoadTextureFromFile("./images/png/mine_wrong.png");
     this->mine_open_black = this->window->LoadTextureFromFile("./images/png/mine.png");
     this->mine_open_red = this->window->LoadTextureFromFile("./images/png/mine_red.png");
 
@@ -907,6 +908,11 @@ void MineGridUI::ReleaseResources()
     if (this->mine_flagged != NULL) {
         SDL_DestroyTexture(this->mine_flagged);
         this->mine_flagged = NULL;
+    }
+
+    if (this->mine_flagged_wrong != NULL) {
+        SDL_DestroyTexture(this->mine_flagged_wrong);
+        this->mine_flagged_wrong = NULL;
     }
 
     if (this->mine_open_black != NULL) {
@@ -1003,14 +1009,11 @@ int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
         if (event->x - x1 > MINE_GRID_EDGE_MARGIN && event->y - y1 > MINE_GRID_EDGE_MARGIN) {
             int index_x = (event->x - x1) / MINE_GRID_MINE_SIZE;
             int index_y = (event->y - y1) / MINE_GRID_MINE_SIZE;
-            //MineGame::State grid_state = this->game->GetState(index_x, index_y);
             std::vector<MineGameEvent> events;
 
-            /*
             if (event->button == SDL_BUTTON_LEFT && event->type == SDL_MOUSEBUTTONUP) {
-                this->game->Open(index_x, index_y);
-            } else */
-            if (event->button == SDL_BUTTON_RIGHT && event->type == SDL_MOUSEBUTTONUP) {
+                this->window->GetGame()->Open(index_x, index_y, events);
+            } else if (event->button == SDL_BUTTON_RIGHT && event->type == SDL_MOUSEBUTTONUP) {
                 this->window->GetGame()->TouchFlag(index_x, index_y, events);
             }   
 
@@ -1075,6 +1078,18 @@ int MineGridUI::HandleGameEvents(const std::vector<MineGameEvent> &events)
 
         case STATE_FLAGGED:
             this->window->UpdateTexture(this->grid_texture, this->mine_flagged, &rect);
+            break;
+
+        case STATE_FLAGGED_WRONG:
+            this->window->UpdateTexture(this->grid_texture, this->mine_flagged_wrong, &rect);
+            break;
+
+        case STATE_MINE_EXPLODE:
+            this->window->UpdateTexture(this->grid_texture, this->mine_open_red, &rect);
+            break;
+
+        case STATE_MINE_OPEN:
+            this->window->UpdateTexture(this->grid_texture, this->mine_open_black, &rect);
             break;
 
         case STATE_MINE_0:
