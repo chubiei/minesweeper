@@ -234,6 +234,7 @@ void MineGameWindowUI::GameReset()
 
     this->time_counter->SetCount(0);
     this->time_counter->Redraw();
+    this->time_counter->RemoveTimer();
 
     this->mine_counter->SetCount(this->game->GetFlagCount());
     this->mine_counter->Redraw();
@@ -1043,14 +1044,13 @@ int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
     y2 = this->GetRect()->y + this->GetRect()->h;
 
     if (x1 <= event->x && event->x < x2 && y1 <= event->y && event->y < y2) {
-
+/*
         std::cout << "SDL_MouseButtonEvent: ";
         std::cout << "type = " << ((event->type == SDL_MOUSEBUTTONDOWN) ? "SDL_MOUSEBUTTONDOWN" : "SDL_MOUSEBUTTONUP");
         std::cout << ", button = " << (int)event->button;
         std::cout << ", state = " << (event->state == SDL_PRESSED) ? "SDL_PRESSED" : "SDL_RELEASED";
         std::cout << ", clicks = " << (int)event->clicks << std::endl;
-
-        std::cout << "diff_x = " << (event->x - x1) << ", diff_y = " << (event->y - y1) << std::endl;
+*/
         if (event->x - x1 > MINE_GRID_EDGE_MARGIN && event->y - y1 > MINE_GRID_EDGE_MARGIN) {
             int index_x = (event->x - x1) / MINE_GRID_MINE_SIZE;
             int index_y = (event->y - y1) / MINE_GRID_MINE_SIZE;
