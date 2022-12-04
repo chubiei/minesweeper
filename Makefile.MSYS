@@ -1,0 +1,50 @@
+# target
+BIN = mine.exe
+#SOURCES = main.cpp game.cpp ui_window.cpp ui_component.cpp
+SOURCES = main.cpp game.cpp ui.cpp
+APP = Minesweeper
+
+# commandline tools
+COMPILER = g++
+LINKER = g++
+
+# additional path we need
+#MINGW_RUNTIME_PATH = /mingw64
+MINGW_RUNTIME_PATH = /ucrt64
+SDL_IMAGE_PATH = ./SDL2_image-2.6.2/x86_64-w64-mingw32
+SDL_PATH = ./SDL2-2.26.0/x86_64-w64-mingw32
+
+# compiler flags
+CFLAGS = -Wextra -g -O2 -I$(SDL_IMAGE_PATH)/include/SDL2 -I$(SDL_PATH)/include/SDL2 -c
+
+# link flags
+# - statically link standard libraries
+LDFLAGS = -L$(SDL_PATH)/lib -L$(SDL_IMAGE_PATH)/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_image
+LDFLAGS += -static-libstdc++ -static-libgcc
+# - remove console window
+LDFLAGS += -Wl,-subsystem,windows
+
+%.o: %.cpp
+	$(COMPILER) $(CFLAGS) -o $@ $<
+
+$(BIN): $(SOURCES:.cpp=.o)
+	$(LINKER) -o $@ $^ $(LDFLAGS)
+
+.PHONY: dist
+dist: $(BIN)
+	rm -rf $(APP)
+	mkdir $(APP)
+	cp $(BIN) $(APP)/$(BIN)
+	cp -rf images $(APP)/images
+	cp $(MINGW_RUNTIME_PATH)/bin/libwinpthread-1.dll $(APP)
+	cp $(SDL_IMAGE_PATH)/bin/SDL2_image.dll $(APP)
+	cp $(SDL_PATH)/bin/SDL2.dll $(APP)
+
+#This is the target that compiles our executable
+.PHONY: all
+all: dist
+
+.PHONY: clean
+clean:
+	rm -rf $(BIN) *.o $(APP)
+
