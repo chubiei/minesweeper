@@ -223,11 +223,13 @@ void MineGame::InitMines(int skip_x, int skip_y)
                 this->mine_map[y][x] = count;
             }
 
-            this->state_map[y][x] = MineGameGridState::STATE_COVERED;
+            // NOTE: InitMines does not change state_map, because flags can be placed prior to init 
+            // this->state_map[y][x] = MineGameGridState::STATE_COVERED;
         }
     }
 
-    this->flag_count = 0;
+    // NOTE: InitMines does not change flag_count, because flags can be placed prior to init 
+    //this->flag_count = 0;
     this->remaining_count = this->width * this->height - this->mine_count;
     this->game_state = MineGameState::GAME_RUNNING;
 }
