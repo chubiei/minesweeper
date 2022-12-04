@@ -144,6 +144,11 @@ void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
         if (this->IsValidPoint(x, y)) {
             if (this->GetGridState(x, y) == STATE_COVERED) {
                 this->OpenRecursive(x, y, events);
+
+                // if game_state is changed inside OpenRecursive to GAME_WON, place all flags
+                if (this->game_state == MineGameState::GAME_WON) {
+                    this->AppendAllFlags(events);
+                }
             }
         }
     }
@@ -279,8 +284,14 @@ void MineGame::FreeMap()
 
 void MineGame::UpdateStateDirectly(int x, int y, MineGameGridState state)
 {
+    if (this->state_map[y][x] == MineGameGridState::STATE_FLAGGED && state != MineGameGridState::STATE_FLAGGED) {
+        this->flag_count -= 1;
+    }
+
     this->state_map[y][x] = state;
     this->remaining_count -= 1;
+
+    std::cout << "Flag count: " << this->flag_count << std::endl;
     std::cout << "Remaining count: " << this->remaining_count << std::endl;
 
     if (this->remaining_count == 0) {
@@ -411,6 +422,26 @@ void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
             if (this->IsValidPoint(right, down)) this->OpenRecursive(right, down, events);
         }
     }
+}
+
+void MineGame::AppendAllFlags(std::vector<MineGameEvent> &events)
+{
+    // show all uncovered flags
+    for (int y = 0; y < this->height; y++) {
+        for (int x = 0; x < this->width; x++) {
+            if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGridState::STATE_COVERED) {
+                MineGameEvent e;
+
+                e.state = MineGameGridState::STATE_FLAGGED;
+                e.x = x;
+                e.y = y;
+
+                events.push_back(e);
+            }
+        }
+    }
+
+    this->flag_count = this->mine_count;
 }
 
 bool MineGame::IsValidPoint(int x, int y)

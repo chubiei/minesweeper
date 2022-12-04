@@ -74,6 +74,7 @@ class MineGame {
         
         void ShowAllMines(std::vector<MineGameEvent> &events);
         void OpenRecursive(int x, int y, std::vector<MineGameEvent> &events);
+        void AppendAllFlags(std::vector<MineGameEvent> &events);
         bool IsValidPoint(int x, int y);
 
     private:
