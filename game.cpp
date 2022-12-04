@@ -59,6 +59,9 @@ void MineGame::SetCustom(int width, int height, int mine_count)
     this->width = width;
     this->height = height;
     this->mine_count = mine_count;
+
+    this->flag_count = 0;
+    this->remaining_count = this->width * this->height - this->mine_count;
     this->game_state = MineGameState::GAME_READY;
 
     // clean up map
@@ -72,6 +75,8 @@ void MineGame::SetCustom(int width, int height, int mine_count)
 
 void MineGame::Reset()
 {
+    this->flag_count = 0;
+    this->remaining_count = this->width * this->height - this->mine_count;
     this->game_state = MineGameState::GAME_READY;
 
     // clean up map
