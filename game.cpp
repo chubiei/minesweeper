@@ -60,23 +60,44 @@ void MineGame::SetCustom(int width, int height, int mine_count)
     for (int i = 0; i < this->height; i++) {
         for (int j = 0; j < this->width; j++) {
             this->mine_map[i][j] = 0;
-            this->state_map[i][j] = 0;
+            this->state_map[i][j] = MineGameState::STATE_COVERED;
         }
     }
 }
 
-void MineGame::TouchFlag(int x, int y)
+MineGameState MineGame::GetState(int x, int y)
 {
-    if (this->state_map[y][x] == STATE_EMPTY) {
-        this->state_map[y][x] = STATE_FLAGGED;
-        this->flag_count += 1;
-    } else if (this->state_map[y][x] == STATE_FLAGGED) {
-        this->state_map[y][x] = STATE_EMPTY;
-        this->flag_count -= 1;
+    return this->state_map[y][x];
+}
+
+void MineGame::TouchFlag(int x, int y, std::vector<MineGameEvent> &events)
+{
+    MineGameEvent e;
+
+    std::cout << "MineGame::TouchFlag(x=" << x << ", y=" << y << ")" << std::endl;
+
+    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+        if (this->GetState(x, y) == STATE_COVERED) {
+            this->state_map[y][x] = STATE_FLAGGED;
+            this->flag_count += 1;
+
+            e.state = STATE_FLAGGED;
+            e.x = x;
+            e.y = y;
+            events.push_back(e);
+        } else if (this->GetState(x, y) == STATE_FLAGGED) {
+            this->state_map[y][x] = STATE_COVERED;
+            this->flag_count -= 1;
+
+            e.state = STATE_COVERED;
+            e.x = x;
+            e.y = y;
+            events.push_back(e);
+        }
     }
 }
 
-void MineGame::Open(int x, int y)
+void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
 {
     if (!this->init) {
         this->InitMines(x, y);
@@ -94,7 +115,7 @@ void MineGame::Open(int x, int y)
     }
 }
 
-void MineGame::OpenFast(int x, int y)
+void MineGame::OpenFast(int x, int y, std::vector<MineGameEvent> &events)
 {
 }
 
@@ -158,7 +179,7 @@ void MineGame::InitMines(int skip_x, int skip_y)
                 this->mine_map[y][x] = count;
             }
 
-            this->state_map[y][x] = MineGame::State::STATE_EMPTY;
+            this->state_map[y][x] = MineGameState::STATE_COVERED;
         }
     }
 }
@@ -179,10 +200,10 @@ int MineGame::AllocateMap(int width, int height)
     if (width > 0 && height > 0) {
         // allocate mine map and flag map
         this->mine_map = new int* [height];
-        this->state_map = new int* [height];
+        this->state_map = new MineGameState* [height];
         for (int i = 0; i < height; i++) {
             this->mine_map[i] = new int [width];
-            this->state_map[i] = new int [width];
+            this->state_map[i] = new MineGameState [width];
         }
 
         this->width = width;
@@ -216,4 +237,18 @@ void MineGame::FreeMap()
 
     this->width = 0;
     this->height = 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+MineGameEvent::MineGameEvent()
+{
+    this->state = MineGameState::STATE_COVERED;
+    this->x = 0;
+    this->y = 0;
+}
+
+MineGameEvent::~MineGameEvent()
+{
+
 }
