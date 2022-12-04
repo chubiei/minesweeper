@@ -1,9 +1,9 @@
 #include "sdl_headers.h"
+#include "game.h"
 
 #ifndef __MINE_UI_H__
 #define __MINE_UI_H__
 
-class MineGame;
 class CounterUI;
 class FaceButtonUI;
 class MineGridUI;
@@ -22,6 +22,7 @@ class MineGameWindowUI {
         SDL_Texture *CreateTexture(int width, int height);
         int UpdateWindowTexture(SDL_Texture *texture, const SDL_Rect *rect);
         int UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *texture, const SDL_Rect *rect);
+        MineGame * GetGame();
 
     private:
         int CreateWindow();
@@ -180,6 +181,7 @@ class MineGridUI {
 
     private:
         int InitTexture(); 
+        int HandleGameEvents(const std::vector<MineGameEvent> &events);
 
     private:
         // owner window
@@ -187,7 +189,8 @@ class MineGridUI {
 
         // mines
         SDL_Texture **mine;
-        SDL_Texture *mine_close;
+        SDL_Texture *mine_covered;
+        SDL_Texture *mine_flagged;
         SDL_Texture *mine_open_black;
         SDL_Texture *mine_open_red;
 

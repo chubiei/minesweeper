@@ -320,10 +320,17 @@ int MineGameWindowUI::UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *t
     return 0;
 }
 
+MineGame * MineGameWindowUI::GetGame()
+{
+    return this->game;
+}
+
 int MineGameWindowUI::RefreshWindow()
 {
     // update texture to window
     if (this->window_texture != NULL && this->window_texture_dirty) {
+        std::cout << "RefreshWindow" << std::endl;
+
         SDL_SetRenderTarget(this->renderer, NULL);
         SDL_RenderCopy(this->renderer, this->window_texture, NULL, NULL);
         SDL_RenderPresent(this->renderer);
@@ -791,7 +798,8 @@ MineGridUI::MineGridUI(MineGameWindowUI *window)
     this->window = window;
 
     this->mine = new SDL_Texture * [9];
-    this->mine_close = NULL;
+    this->mine_covered = NULL;
+    this->mine_flagged = NULL;
     this->mine_open_black = NULL;
     this->mine_open_red = NULL;
 
@@ -872,7 +880,8 @@ int MineGridUI::LoadResources()
     this->mine[6] = this->window->LoadTextureFromFile("./images/png/type6.png");
     this->mine[7] = this->window->LoadTextureFromFile("./images/png/type7.png");
     this->mine[8] = this->window->LoadTextureFromFile("./images/png/type8.png");
-    this->mine_close = this->window->LoadTextureFromFile("./images/png/closed.png");
+    this->mine_covered = this->window->LoadTextureFromFile("./images/png/closed.png");
+    this->mine_flagged = this->window->LoadTextureFromFile("./images/png/flag.png");
     this->mine_open_black = this->window->LoadTextureFromFile("./images/png/mine.png");
     this->mine_open_red = this->window->LoadTextureFromFile("./images/png/mine_red.png");
 
@@ -890,9 +899,14 @@ void MineGridUI::ReleaseResources()
         }
     }
 
-    if (this->mine_close != NULL) {
-        SDL_DestroyTexture(this->mine_close);
-        this->mine_close = NULL;
+    if (this->mine_covered != NULL) {
+        SDL_DestroyTexture(this->mine_covered);
+        this->mine_covered = NULL;
+    }
+
+    if (this->mine_flagged != NULL) {
+        SDL_DestroyTexture(this->mine_flagged);
+        this->mine_flagged = NULL;
     }
 
     if (this->mine_open_black != NULL) {
@@ -920,11 +934,90 @@ int MineGridUI::Redraw()
 
 int MineGridUI::HandleMouseMotionEvent(SDL_MouseMotionEvent *event)
 {
+    int x1, x2, y1, y2, last_x, last_y;
+    bool start_in, end_in;
+
+    x1 = this->GetRect()->x;
+    x2 = this->GetRect()->x + this->GetRect()->w;
+    y1 = this->GetRect()->y;
+    y2 = this->GetRect()->y + this->GetRect()->h;
+    last_x = event->x - event->xrel;
+    last_y = event->y - event->yrel;
+
+    start_in = (x1 <= last_x && last_x < x2 && y1 <= last_y && last_y < y2);
+    end_in = (x1 <= event->x && event->x < x2 && y1 <= event->y && event->y < y2);
+
+    // leaving component
+    if (start_in && !end_in) {
+        /*
+        std::cout << "SDL_MouseMotionEvent: ";
+        std::cout << "type = SDL_MOUSEMOTION";
+        std::cout << ", state = " << event->state;
+        std::cout << ", x = " << event->x << ", y = " << event->y;
+        std::cout << ", xrel = " << event->xrel << ", yrel = " << event->yrel;
+        std::cout << ", type = leaving" << std::endl;
+        */
+    }
+    // entering component
+    else if (!start_in && end_in) {
+        /*
+        std::cout << "SDL_MouseMotionEvent: ";
+        std::cout << "type = SDL_MOUSEMOTION";
+        std::cout << ", state = " << event->state;
+        std::cout << ", x = " << event->x << ", y = " << event->y;
+        std::cout << ", xrel = " << event->xrel << ", yrel = " << event->yrel;
+        std::cout << ", type = entering" << std::endl;
+        */
+    } else {
+        /*
+        std::cout << "SDL_MouseMotionEvent: ";
+        std::cout << "type = SDL_MOUSEMOTION";
+        std::cout << ", state = " << event->state;
+        std::cout << ", x = " << event->x << ", y = " << event->y;
+        std::cout << ", xrel = " << event->xrel << ", yrel = " << event->yrel;
+        std::cout << ", type = ???" << std::endl;
+        */
+    }
+
     return 0;
 }
 
 int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
 {
+    int x1, x2, y1, y2;
+
+    x1 = this->GetRect()->x;
+    x2 = this->GetRect()->x + this->GetRect()->w;
+    y1 = this->GetRect()->y;
+    y2 = this->GetRect()->y + this->GetRect()->h;
+
+    if (x1 <= event->x && event->x < x2 && y1 <= event->y && event->y < y2) {
+
+        std::cout << "SDL_MouseButtonEvent: ";
+        std::cout << "type = " << ((event->type == SDL_MOUSEBUTTONDOWN) ? "SDL_MOUSEBUTTONDOWN" : "SDL_MOUSEBUTTONUP");
+        std::cout << ", button = " << (int)event->button;
+        std::cout << ", state = " << (event->state == SDL_PRESSED) ? "SDL_PRESSED" : "SDL_RELEASED";
+        std::cout << ", clicks = " << (int)event->clicks << std::endl;
+
+        std::cout << "diff_x = " << (event->x - x1) << ", diff_y = " << (event->y - y1) << std::endl;
+        if (event->x - x1 > MINE_GRID_EDGE_MARGIN && event->y - y1 > MINE_GRID_EDGE_MARGIN) {
+            int index_x = (event->x - x1) / MINE_GRID_MINE_SIZE;
+            int index_y = (event->y - y1) / MINE_GRID_MINE_SIZE;
+            //MineGame::State grid_state = this->game->GetState(index_x, index_y);
+            std::vector<MineGameEvent> events;
+
+            /*
+            if (event->button == SDL_BUTTON_LEFT && event->type == SDL_MOUSEBUTTONUP) {
+                this->game->Open(index_x, index_y);
+            } else */
+            if (event->button == SDL_BUTTON_RIGHT && event->type == SDL_MOUSEBUTTONUP) {
+                this->window->GetGame()->TouchFlag(index_x, index_y, events);
+            }   
+
+            this->HandleGameEvents(events);
+        }
+    }
+  
     return 0;
 }
 
@@ -946,15 +1039,88 @@ int MineGridUI::InitTexture()
             for (int j = 0; j < this->game_x; j++) {
                 SDL_Rect rect;
 
-                rect.x = j * 24 + 2;
-                rect.y = i * 24 + 2;
-                rect.w = 24;
-                rect.h = 24;
+                rect.x = j * MINE_GRID_MINE_SIZE + 2;
+                rect.y = i * MINE_GRID_MINE_SIZE + 2;
+                rect.w = MINE_GRID_MINE_SIZE;
+                rect.h = MINE_GRID_MINE_SIZE;
 
-                this->window->UpdateTexture(this->grid_texture, this->mine_close, &rect);
+                this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
             }
         }
     }
+
+    return 0;
+}
+
+int MineGridUI::HandleGameEvents(const std::vector<MineGameEvent> &events)
+{
+    if (events.size() <= 0) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < events.size(); i++) {
+        SDL_Rect rect;
+
+        rect.x = events[i].x * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
+        rect.y = events[i].y * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
+        rect.w = MINE_GRID_MINE_SIZE;
+        rect.h = MINE_GRID_MINE_SIZE;
+
+        std::cout << "MineGridUI: redraw grid with state = " << events[i].state <<" at (" << events[i].x << ", " << events[i].y << ")" << std::endl;
+
+        switch (events[i].state) {
+        case STATE_COVERED:
+            this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
+            break;
+
+        case STATE_FLAGGED:
+            this->window->UpdateTexture(this->grid_texture, this->mine_flagged, &rect);
+            break;
+
+        case STATE_MINE_0:
+            this->window->UpdateTexture(this->grid_texture, this->mine[0], &rect);
+            break;
+
+        case STATE_MINE_1:
+            this->window->UpdateTexture(this->grid_texture, this->mine[1], &rect);
+            break;
+
+        case STATE_MINE_2:
+            this->window->UpdateTexture(this->grid_texture, this->mine[2], &rect);
+            break;
+
+        case STATE_MINE_3:
+            this->window->UpdateTexture(this->grid_texture, this->mine[3], &rect);
+            break;
+
+        case STATE_MINE_4:
+            this->window->UpdateTexture(this->grid_texture, this->mine[4], &rect);
+            break;
+
+        case STATE_MINE_5:
+            this->window->UpdateTexture(this->grid_texture, this->mine[5], &rect);
+            break;
+
+        case STATE_MINE_6:
+            this->window->UpdateTexture(this->grid_texture, this->mine[6], &rect);
+            break;
+
+        case STATE_MINE_7:
+            this->window->UpdateTexture(this->grid_texture, this->mine[7], &rect);
+            break;
+
+        case STATE_MINE_8:
+            this->window->UpdateTexture(this->grid_texture, this->mine[8], &rect);
+            break;
+
+        default:
+            std::cerr << "MineGridUI::HandleGameEvents: unknown event state " << events[i].state << std::endl;
+            break;
+        }
+
+    }
+
+    this->Redraw();
 
     return 0;
 }
