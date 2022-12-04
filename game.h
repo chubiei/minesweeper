@@ -55,6 +55,7 @@ class MineGame {
         void SetIntermediate();
         void SetExpert();
         void SetCustom(int width, int height, int mine_count);
+        void Reset();
 
         MineGameState GetGameState();
         MineGameGridState GetGridState(int x, int y);

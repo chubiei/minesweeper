@@ -70,6 +70,19 @@ void MineGame::SetCustom(int width, int height, int mine_count)
     }
 }
 
+void MineGame::Reset()
+{
+    this->game_state = MineGameState::GAME_READY;
+
+    // clean up map
+    for (int i = 0; i < this->height; i++) {
+        for (int j = 0; j < this->width; j++) {
+            this->mine_map[i][j] = 0;
+            this->state_map[i][j] = MineGameGridState::STATE_COVERED;
+        }
+    }
+}
+
 MineGameState MineGame::GetGameState()
 {
     return this->game_state;
@@ -125,8 +138,6 @@ void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
 
             std::cout << std::endl;
         }
-
-        this->game_state = MineGameState::GAME_RUNNING;
     }
 
     if (this->game_state == MineGameState::GAME_RUNNING) {
@@ -208,6 +219,7 @@ void MineGame::InitMines(int skip_x, int skip_y)
 
     this->flag_count = 0;
     this->remaining_count = this->width * this->height - this->mine_count;
+    this->game_state = MineGameState::GAME_RUNNING;
 }
 
 bool MineGame::HasMine(int x, int y)
