@@ -7,6 +7,9 @@
 enum MineGameState {
     STATE_COVERED, 
     STATE_FLAGGED,
+    STATE_FLAGGED_WRONG, 
+    STATE_MINE_EXPLODE, 
+    STATE_MINE_OPEN, 
     STATE_MINE_0,
     STATE_MINE_1,
     STATE_MINE_2,
@@ -56,6 +59,8 @@ class MineGame {
         bool HasMine(int x, int y);
         int AllocateMap(int width, int height);
         void FreeMap();
+
+        MineGameState UpdateState(int x, int y);
 
     private:
         int width;

@@ -5,6 +5,11 @@
 #include <cstdlib>
 #include "game.h"
 
+struct Point {
+    int x;
+    int y;
+};
+
 MineGame::MineGame()
 {
     this->width = 0;
@@ -99,19 +104,49 @@ void MineGame::TouchFlag(int x, int y, std::vector<MineGameEvent> &events)
 
 void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
 {
+    std::cout << "Open(x=" << x << ", y=" << y << ")" << std::endl;
+
+    // lazy init
     if (!this->init) {
         this->InitMines(x, y);
         this->init = true;
+
+        // this is for debugging
+        for (int y = 0; y < this->height; y++) {
+            for (int x = 0; x < this->width; x++) {
+                std::cout << std::setw(4) << this->mine_map[y][x];
+            }
+
+            std::cout << std::endl;
+        }
     }
 
-    std::cout << "Open(x=" << x << ", y=" << y << ")" << std::endl;
+    if (0 <= x && x < this->width && 0 <= y && y < this->height) {
+        if (this->GetState(x, y) == STATE_COVERED) {
+            MineGameEvent e;
 
-    for (int y = 0; y < this->height; y++) {
-        for (int x = 0; x < this->width; x++) {
-            std::cout << std::setw(4) << this->mine_map[y][x];
+            // explode on mine
+            if (this->mine_map[y][x] == -1) {
+                this->state_map[y][x] = MineGameState::STATE_MINE_EXPLODE;
+                e.state = MineGameState::STATE_MINE_EXPLODE;
+                e.x = x;
+                e.y = y;
+
+                events.push_back(e);
+
+                // FIXME: ending mode, open all mines
+            }
+            // open it
+            else {
+                e.state = this->UpdateState(x, y);
+                e.x = x;
+                e.y = y;
+
+                events.push_back(e);
+
+                // FIXME: open neighbors
+            }
         }
-
-        std::cout << std::endl;
     }
 }
 
@@ -239,6 +274,62 @@ void MineGame::FreeMap()
     this->height = 0;
 }
 
+MineGameState MineGame::UpdateState(int x, int y)
+{
+    MineGameState state;
+
+    switch (this->mine_map[y][x]) {
+    case -1:
+        state = MineGameState::STATE_MINE_OPEN;
+        break;
+
+    case 0:
+        state = MineGameState::STATE_MINE_0;
+        break;
+
+    case 1:
+        state = MineGameState::STATE_MINE_1;
+        break;
+
+    case 2:
+        state = MineGameState::STATE_MINE_2;
+        break;
+
+    case 3:
+        state = MineGameState::STATE_MINE_3;
+        break;
+
+    case 4:
+        state = MineGameState::STATE_MINE_4;
+        break;
+
+    case 5:
+        state = MineGameState::STATE_MINE_5;
+        break;
+
+    case 6:
+        state = MineGameState::STATE_MINE_6;
+        break;
+
+    case 7:
+        state = MineGameState::STATE_MINE_7;
+        break;
+
+    case 8:
+        state = MineGameState::STATE_MINE_8;
+        break;
+
+    default:
+        state = MineGameState::STATE_COVERED;
+        break;
+    }
+
+    if (this->GetState(x, y) == MineGameState::STATE_COVERED) {
+        this->state_map[y][x] = state;
+    }
+
+    return state;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 MineGameEvent::MineGameEvent()
