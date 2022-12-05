@@ -215,14 +215,14 @@ SDL_Texture *MineGameWindowUI::CreateTexture(int width, int height)
     return texture;
 }
 
-void MineGameWindowUI::GameOpen(int x, int y, std::vector<MineGameGrid> &events)
+void MineGameWindowUI::GameOpen(int x, int y)
 {
-    this->game->Open(x, y, events);
+    this->game->Open(x, y);
 }
 
-void MineGameWindowUI::GameTouchFlag(int x, int y, std::vector<MineGameGrid> &events)
+void MineGameWindowUI::GameTouchFlag(int x, int y)
 {
-    this->game->TouchFlag(x, y, events);
+    this->game->TouchFlag(x, y);
 }
 
 void MineGameWindowUI::GameReset()
@@ -238,6 +238,12 @@ void MineGameWindowUI::GameReset()
 
     this->mine_counter->SetCount(this->game->GetFlagCount());
     this->mine_counter->Redraw();
+}
+
+void MineGameWindowUI::GameGetDirtyGrids(std::vector<MineGameGrid> &grids)
+{
+    this->game->GetDirtyGrids(grids);
+    this->game->ClearDirtyGrids();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1054,15 +1060,14 @@ int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
         if (event->x - x1 > MINE_GRID_EDGE_MARGIN && event->y - y1 > MINE_GRID_EDGE_MARGIN) {
             int index_x = (event->x - x1) / MINE_GRID_MINE_SIZE;
             int index_y = (event->y - y1) / MINE_GRID_MINE_SIZE;
-            std::vector<MineGameGrid> events;
 
             if (event->button == SDL_BUTTON_LEFT && event->type == SDL_MOUSEBUTTONUP) {
-                this->window->GameOpen(index_x, index_y, events);
+                this->window->GameOpen(index_x, index_y);
             } else if (event->button == SDL_BUTTON_RIGHT && event->type == SDL_MOUSEBUTTONUP) {
-                this->window->GameTouchFlag(index_x, index_y, events);
+                this->window->GameTouchFlag(index_x, index_y);
             }   
 
-            this->HandleGameEvents(events);
+            this->RedrawDirtyGrids();
         }
     }
   
@@ -1100,23 +1105,23 @@ int MineGridUI::InitTexture()
     return 0;
 }
 
-int MineGridUI::HandleGameEvents(const std::vector<MineGameGrid> &events)
+int MineGridUI::RedrawDirtyGrids()
 {
-    if (events.size() <= 0) {
-        return 0;
-    }
+    std::vector<MineGameGrid> grids;
 
-    for (size_t i = 0; i < events.size(); i++) {
+    this->window->GameGetDirtyGrids(grids);
+
+    for (size_t i = 0; i < grids.size(); i++) {
         SDL_Rect rect;
 
-        rect.x = events[i].x * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
-        rect.y = events[i].y * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
+        rect.x = grids[i].x * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
+        rect.y = grids[i].y * MINE_GRID_MINE_SIZE + MINE_GRID_EDGE_MARGIN;
         rect.w = MINE_GRID_MINE_SIZE;
         rect.h = MINE_GRID_MINE_SIZE;
 
-        std::cout << "MineGridUI: redraw grid with state = " << events[i].state <<" at (" << events[i].x << ", " << events[i].y << ")" << std::endl;
+        std::cout << "MineGridUI: redraw grid with state = " << grids[i].state <<" at (" << grids[i].x << ", " << grids[i].y << ")" << std::endl;
 
-        switch (events[i].state) {
+        switch (grids[i].state) {
         case MineGameGrid::State::STATE_COVERED:
             this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
             break;
@@ -1174,10 +1179,9 @@ int MineGridUI::HandleGameEvents(const std::vector<MineGameGrid> &events)
             break;
 
         default:
-            std::cerr << "MineGridUI::HandleGameEvents: unknown event state " << events[i].state << std::endl;
+            std::cerr << "MineGridUI::RedrawDirtyGrids: unknown grid state " << grids[i].state << std::endl;
             break;
         }
-
     }
 
     this->Redraw();

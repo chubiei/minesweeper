@@ -22,9 +22,10 @@ class MineGameWindowUI {
         SDL_Texture *CreateTexture(int width, int height);
         int UpdateWindowTexture(SDL_Texture *texture, const SDL_Rect *rect);
         int UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *texture, const SDL_Rect *rect);
-        void GameOpen(int x, int y, std::vector<MineGameGrid> &events);
-        void GameTouchFlag(int x, int y, std::vector<MineGameGrid> &events);
+        void GameOpen(int x, int y);
+        void GameTouchFlag(int x, int y);
         void GameReset();
+        void GameGetDirtyGrids(std::vector<MineGameGrid> &grids);
 
     private:
         int CreateWindow();
@@ -183,7 +184,7 @@ class MineGridUI {
 
     private:
         int InitTexture(); 
-        int HandleGameEvents(const std::vector<MineGameGrid> &events);
+        int RedrawDirtyGrids();
 
     private:
         // owner window
