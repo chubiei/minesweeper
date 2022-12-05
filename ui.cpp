@@ -112,7 +112,7 @@ int MineGameWindowUI::ProcessEvents()
 
 int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
 {
-    MineGameState old_state = this->game->GetGameState();
+    MineGame::State old_state = this->game->GetGameState();
     int old_flag_count = this->game->GetFlagCount();
 
     // mouse motion
@@ -142,15 +142,15 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
 
     }    
 
-    MineGameState new_state = this->game->GetGameState();
+    MineGame::State new_state = this->game->GetGameState();
     int new_flag_count = this->game->GetFlagCount();
     
-    if (old_state == MineGameState::GAME_READY && new_state == MineGameState::GAME_RUNNING) {
+    if (old_state == MineGame::State::GAME_READY && new_state == MineGame::State::GAME_RUNNING) {
         this->time_counter->AddTimer(1);
-    } else if (new_state == MineGameState::GAME_WON) {
+    } else if (new_state == MineGame::State::GAME_WON) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_WIN);
         this->time_counter->RemoveTimer();
-    } else if (new_state == MineGameState::GAME_LOST) {
+    } else if (new_state == MineGame::State::GAME_LOST) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_LOSE);
         this->time_counter->RemoveTimer();
     }

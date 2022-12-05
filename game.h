@@ -4,12 +4,6 @@
 #ifndef __MINE_GAME_H__
 #define __MINE_GAME_H__
 
-enum MineGameState {
-    GAME_READY,
-    GAME_RUNNING, 
-    GAME_WON,
-    GAME_LOST
-};
 
 enum MineGameGridState {
     STATE_COVERED, 
@@ -41,6 +35,12 @@ class MineGameEvent {
 
 class MineGame {
     public:
+        enum State {
+            GAME_READY,
+            GAME_RUNNING, 
+            GAME_WON,
+            GAME_LOST
+        };
 
     public:
         MineGame();
@@ -57,7 +57,7 @@ class MineGame {
         void SetCustom(int width, int height, int mine_count);
         void Reset();
 
-        MineGameState GetGameState();
+        State GetGameState();
         MineGameGridState GetGridState(int x, int y);
         void TouchFlag(int x, int y, std::vector<MineGameEvent> &events);
         void Open(int x, int y, std::vector<MineGameEvent> &events);
@@ -88,7 +88,7 @@ class MineGame {
 
         // represent user interface state
         MineGameGridState **state_map;
-        MineGameState game_state;
+        State game_state;
 };
 
 
