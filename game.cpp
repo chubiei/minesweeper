@@ -68,7 +68,7 @@ void MineGame::SetCustom(int width, int height, int mine_count)
     for (int i = 0; i < this->height; i++) {
         for (int j = 0; j < this->width; j++) {
             this->mine_map[i][j] = 0;
-            this->state_map[i][j] = MineGameGridState::STATE_COVERED;
+            this->state_map[i][j] = MineGameGrid::State::STATE_COVERED;
         }
     }
 }
@@ -83,7 +83,7 @@ void MineGame::Reset()
     for (int i = 0; i < this->height; i++) {
         for (int j = 0; j < this->width; j++) {
             this->mine_map[i][j] = 0;
-            this->state_map[i][j] = MineGameGridState::STATE_COVERED;
+            this->state_map[i][j] = MineGameGrid::State::STATE_COVERED;
         }
     }
 }
@@ -93,32 +93,32 @@ MineGame::State MineGame::GetGameState()
     return this->game_state;
 }
 
-MineGameGridState MineGame::GetGridState(int x, int y)
+MineGameGrid::State MineGame::GetGridState(int x, int y)
 {
     return this->state_map[y][x];
 }
 
-void MineGame::TouchFlag(int x, int y, std::vector<MineGameEvent> &events)
+void MineGame::TouchFlag(int x, int y, std::vector<MineGameGrid> &events)
 {
-    MineGameEvent e;
+    MineGameGrid e;
 
     std::cout << "MineGame::TouchFlag(x=" << x << ", y=" << y << ")" << std::endl;
 
     if (this->game_state == MineGame::State::GAME_RUNNING || this->game_state == MineGame::State::GAME_READY) {
         if (this->IsValidPoint(x, y)) {
-            if (this->GetGridState(x, y) == STATE_COVERED) {
-                this->state_map[y][x] = STATE_FLAGGED;
+            if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
+                this->state_map[y][x] = MineGameGrid::State::STATE_FLAGGED;
                 this->flag_count += 1;
 
-                e.state = STATE_FLAGGED;
+                e.state = MineGameGrid::State::STATE_FLAGGED;
                 e.x = x;
                 e.y = y;
                 events.push_back(e);
-            } else if (this->GetGridState(x, y) == STATE_FLAGGED) {
-                this->state_map[y][x] = STATE_COVERED;
+            } else if (this->GetGridState(x, y) == MineGameGrid::State::STATE_FLAGGED) {
+                this->state_map[y][x] = MineGameGrid::State::STATE_COVERED;
                 this->flag_count -= 1;
 
-                e.state = STATE_COVERED;
+                e.state = MineGameGrid::State::STATE_COVERED;
                 e.x = x;
                 e.y = y;
                 events.push_back(e);
@@ -127,7 +127,7 @@ void MineGame::TouchFlag(int x, int y, std::vector<MineGameEvent> &events)
     }
 }
 
-void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
+void MineGame::Open(int x, int y, std::vector<MineGameGrid> &events)
 {
     std::cout << "Open(x=" << x << ", y=" << y << ")" << std::endl;
 
@@ -147,7 +147,7 @@ void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
 
     if (this->game_state == MineGame::State::GAME_RUNNING) {
         if (this->IsValidPoint(x, y)) {
-            if (this->GetGridState(x, y) == STATE_COVERED) {
+            if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
                 this->OpenRecursive(x, y, events);
 
                 // if game_state is changed inside OpenRecursive to GAME_WON, place all flags
@@ -159,7 +159,7 @@ void MineGame::Open(int x, int y, std::vector<MineGameEvent> &events)
     }
 }
 
-void MineGame::OpenFast(int x, int y, std::vector<MineGameEvent> &events)
+void MineGame::OpenFast(int x, int y, std::vector<MineGameGrid> &events)
 {
 }
 
@@ -224,7 +224,7 @@ void MineGame::InitMines(int skip_x, int skip_y)
             }
 
             // NOTE: InitMines does not change state_map, because flags can be placed prior to init 
-            // this->state_map[y][x] = MineGameGridState::STATE_COVERED;
+            // this->state_map[y][x] = MineGameGrid::State::STATE_COVERED;
         }
     }
 
@@ -250,10 +250,10 @@ int MineGame::AllocateMap(int width, int height)
     if (width > 0 && height > 0) {
         // allocate mine map and flag map
         this->mine_map = new int* [height];
-        this->state_map = new MineGameGridState* [height];
+        this->state_map = new MineGameGrid::State* [height];
         for (int i = 0; i < height; i++) {
             this->mine_map[i] = new int [width];
-            this->state_map[i] = new MineGameGridState [width];
+            this->state_map[i] = new MineGameGrid::State [width];
         }
 
         this->width = width;
@@ -289,9 +289,9 @@ void MineGame::FreeMap()
     this->height = 0;
 }
 
-void MineGame::UpdateStateDirectly(int x, int y, MineGameGridState state)
+void MineGame::UpdateStateDirectly(int x, int y, MineGameGrid::State state)
 {
-    if (this->state_map[y][x] == MineGameGridState::STATE_FLAGGED && state != MineGameGridState::STATE_FLAGGED) {
+    if (this->state_map[y][x] == MineGameGrid::State::STATE_FLAGGED && state != MineGameGrid::State::STATE_FLAGGED) {
         this->flag_count -= 1;
     }
 
@@ -307,53 +307,53 @@ void MineGame::UpdateStateDirectly(int x, int y, MineGameGridState state)
     }
 }
 
-MineGameGridState MineGame::UpdateStateAutomatically(int x, int y)
+MineGameGrid::State MineGame::UpdateStateAutomatically(int x, int y)
 {
-    MineGameGridState state;
+    MineGameGrid::State state;
 
     switch (this->mine_map[y][x]) {
     case -1:
-        state = MineGameGridState::STATE_MINE_OPEN;
+        state = MineGameGrid::State::STATE_MINE_OPEN;
         break;
 
     case 0:
-        state = MineGameGridState::STATE_MINE_0;
+        state = MineGameGrid::State::STATE_MINE_0;
         break;
 
     case 1:
-        state = MineGameGridState::STATE_MINE_1;
+        state = MineGameGrid::State::STATE_MINE_1;
         break;
 
     case 2:
-        state = MineGameGridState::STATE_MINE_2;
+        state = MineGameGrid::State::STATE_MINE_2;
         break;
 
     case 3:
-        state = MineGameGridState::STATE_MINE_3;
+        state = MineGameGrid::State::STATE_MINE_3;
         break;
 
     case 4:
-        state = MineGameGridState::STATE_MINE_4;
+        state = MineGameGrid::State::STATE_MINE_4;
         break;
 
     case 5:
-        state = MineGameGridState::STATE_MINE_5;
+        state = MineGameGrid::State::STATE_MINE_5;
         break;
 
     case 6:
-        state = MineGameGridState::STATE_MINE_6;
+        state = MineGameGrid::State::STATE_MINE_6;
         break;
 
     case 7:
-        state = MineGameGridState::STATE_MINE_7;
+        state = MineGameGrid::State::STATE_MINE_7;
         break;
 
     case 8:
-        state = MineGameGridState::STATE_MINE_8;
+        state = MineGameGrid::State::STATE_MINE_8;
         break;
 
     default:
-        state = MineGameGridState::STATE_COVERED;
+        state = MineGameGrid::State::STATE_COVERED;
         break;
     }
 
@@ -362,15 +362,15 @@ MineGameGridState MineGame::UpdateStateAutomatically(int x, int y)
     return state;
 }
 
-void MineGame::ShowAllMines(std::vector<MineGameEvent> &events)
+void MineGame::ShowAllMines(std::vector<MineGameGrid> &events)
 {
     // show all uncovered mines
     for (int y = 0; y < this->height; y++) {
         for (int x = 0; x < this->width; x++) {
-            if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGridState::STATE_COVERED) {
-                MineGameEvent e;
+            if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
+                MineGameGrid e;
 
-                e.state = MineGameGridState::STATE_MINE_OPEN;
+                e.state = MineGameGrid::State::STATE_MINE_OPEN;
                 e.x = x;
                 e.y = y;
 
@@ -380,18 +380,18 @@ void MineGame::ShowAllMines(std::vector<MineGameEvent> &events)
     }
 }
 
-void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
+void MineGame::OpenRecursive(int x, int y, std::vector<MineGameGrid> &events)
 {
-    if (this->state_map[y][x] == MineGameGridState::STATE_COVERED || this->state_map[y][x] == MineGameGridState::STATE_FLAGGED) {
+    if (this->state_map[y][x] == MineGameGrid::State::STATE_COVERED || this->state_map[y][x] == MineGameGrid::State::STATE_FLAGGED) {
         // case 1: explode on site
         if (this->mine_map[y][x] < 0) {
-                MineGameEvent e;
-                e.state = MineGameGridState::STATE_MINE_EXPLODE;
+                MineGameGrid e;
+                e.state = MineGameGrid::State::STATE_MINE_EXPLODE;
                 e.x = x;
                 e.y = y;
                 events.push_back(e);
 
-                this->UpdateStateDirectly(x, y, MineGameGridState::STATE_MINE_EXPLODE);
+                this->UpdateStateDirectly(x, y, MineGameGrid::State::STATE_MINE_EXPLODE);
                 this->ShowAllMines(events);
 
                 this->game_state = MineGame::State::GAME_LOST;
@@ -399,7 +399,7 @@ void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
         }
         // case 2: we stop at mine_N
         else if (this->mine_map[y][x] > 0) {
-            MineGameEvent e;
+            MineGameGrid e;
 
             e.state = this->UpdateStateAutomatically(x, y);
             e.x = x;
@@ -409,7 +409,7 @@ void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
         } 
         // case 3: recursively open neighbors
         else if (this->mine_map[y][x] == 0) {
-            MineGameEvent e;
+            MineGameGrid e;
 
             e.state = this->UpdateStateAutomatically(x, y);
             e.x = x;
@@ -431,15 +431,15 @@ void MineGame::OpenRecursive(int x, int y, std::vector<MineGameEvent> &events)
     }
 }
 
-void MineGame::AppendAllFlags(std::vector<MineGameEvent> &events)
+void MineGame::AppendAllFlags(std::vector<MineGameGrid> &events)
 {
     // show all uncovered flags
     for (int y = 0; y < this->height; y++) {
         for (int x = 0; x < this->width; x++) {
-            if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGridState::STATE_COVERED) {
-                MineGameEvent e;
+            if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
+                MineGameGrid e;
 
-                e.state = MineGameGridState::STATE_FLAGGED;
+                e.state = MineGameGrid::State::STATE_FLAGGED;
                 e.x = x;
                 e.y = y;
 
@@ -461,14 +461,14 @@ bool MineGame::IsValidPoint(int x, int y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-MineGameEvent::MineGameEvent()
+MineGameGrid::MineGameGrid()
 {
-    this->state = MineGameGridState::STATE_COVERED;
+    this->state = MineGameGrid::State::STATE_COVERED;
     this->x = 0;
     this->y = 0;
 }
 
-MineGameEvent::~MineGameEvent()
+MineGameGrid::~MineGameGrid()
 {
 
 }

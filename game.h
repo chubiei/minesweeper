@@ -4,33 +4,33 @@
 #ifndef __MINE_GAME_H__
 #define __MINE_GAME_H__
 
-
-enum MineGameGridState {
-    STATE_COVERED, 
-    STATE_FLAGGED,
-    STATE_FLAGGED_WRONG, 
-    STATE_MINE_EXPLODE, 
-    STATE_MINE_OPEN, 
-    STATE_MINE_0,
-    STATE_MINE_1,
-    STATE_MINE_2,
-    STATE_MINE_3,
-    STATE_MINE_4,
-    STATE_MINE_5,
-    STATE_MINE_6,
-    STATE_MINE_7,
-    STATE_MINE_8
-};
-
-class MineGameEvent {
+class MineGameGrid {
     public:
-        MineGameGridState state;
+        enum State {
+            STATE_COVERED, 
+            STATE_FLAGGED,
+            STATE_FLAGGED_WRONG, 
+            STATE_MINE_EXPLODE, 
+            STATE_MINE_OPEN, 
+            STATE_MINE_0,
+            STATE_MINE_1,
+            STATE_MINE_2,
+            STATE_MINE_3,
+            STATE_MINE_4,
+            STATE_MINE_5,
+            STATE_MINE_6,
+            STATE_MINE_7,
+            STATE_MINE_8
+        };
+
+    public:
+        State state;
         int x;
         int y;
 
     public:
-        MineGameEvent();
-        ~MineGameEvent();
+        MineGameGrid();
+        ~MineGameGrid();
 };
 
 class MineGame {
@@ -58,10 +58,10 @@ class MineGame {
         void Reset();
 
         State GetGameState();
-        MineGameGridState GetGridState(int x, int y);
-        void TouchFlag(int x, int y, std::vector<MineGameEvent> &events);
-        void Open(int x, int y, std::vector<MineGameEvent> &events);
-        void OpenFast(int x, int y, std::vector<MineGameEvent> &events);
+        MineGameGrid::State GetGridState(int x, int y);
+        void TouchFlag(int x, int y, std::vector<MineGameGrid> &events);
+        void Open(int x, int y, std::vector<MineGameGrid> &events);
+        void OpenFast(int x, int y, std::vector<MineGameGrid> &events);
 
     private:
         void InitMines(int skip_x, int skip_y);
@@ -69,12 +69,12 @@ class MineGame {
         int AllocateMap(int width, int height);
         void FreeMap();
 
-        void UpdateStateDirectly(int x, int y, MineGameGridState state);
-        MineGameGridState UpdateStateAutomatically(int x, int y);
+        void UpdateStateDirectly(int x, int y, MineGameGrid::State state);
+        MineGameGrid::State UpdateStateAutomatically(int x, int y);
         
-        void ShowAllMines(std::vector<MineGameEvent> &events);
-        void OpenRecursive(int x, int y, std::vector<MineGameEvent> &events);
-        void AppendAllFlags(std::vector<MineGameEvent> &events);
+        void ShowAllMines(std::vector<MineGameGrid> &events);
+        void OpenRecursive(int x, int y, std::vector<MineGameGrid> &events);
+        void AppendAllFlags(std::vector<MineGameGrid> &events);
         bool IsValidPoint(int x, int y);
 
     private:
@@ -87,7 +87,7 @@ class MineGame {
         int **mine_map;
 
         // represent user interface state
-        MineGameGridState **state_map;
+        MineGameGrid::State **state_map;
         State game_state;
 };
 

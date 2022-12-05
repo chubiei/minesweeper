@@ -215,12 +215,12 @@ SDL_Texture *MineGameWindowUI::CreateTexture(int width, int height)
     return texture;
 }
 
-void MineGameWindowUI::GameOpen(int x, int y, std::vector<MineGameEvent> &events)
+void MineGameWindowUI::GameOpen(int x, int y, std::vector<MineGameGrid> &events)
 {
     this->game->Open(x, y, events);
 }
 
-void MineGameWindowUI::GameTouchFlag(int x, int y, std::vector<MineGameEvent> &events)
+void MineGameWindowUI::GameTouchFlag(int x, int y, std::vector<MineGameGrid> &events)
 {
     this->game->TouchFlag(x, y, events);
 }
@@ -1054,7 +1054,7 @@ int MineGridUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
         if (event->x - x1 > MINE_GRID_EDGE_MARGIN && event->y - y1 > MINE_GRID_EDGE_MARGIN) {
             int index_x = (event->x - x1) / MINE_GRID_MINE_SIZE;
             int index_y = (event->y - y1) / MINE_GRID_MINE_SIZE;
-            std::vector<MineGameEvent> events;
+            std::vector<MineGameGrid> events;
 
             if (event->button == SDL_BUTTON_LEFT && event->type == SDL_MOUSEBUTTONUP) {
                 this->window->GameOpen(index_x, index_y, events);
@@ -1100,7 +1100,7 @@ int MineGridUI::InitTexture()
     return 0;
 }
 
-int MineGridUI::HandleGameEvents(const std::vector<MineGameEvent> &events)
+int MineGridUI::HandleGameEvents(const std::vector<MineGameGrid> &events)
 {
     if (events.size() <= 0) {
         return 0;
@@ -1117,59 +1117,59 @@ int MineGridUI::HandleGameEvents(const std::vector<MineGameEvent> &events)
         std::cout << "MineGridUI: redraw grid with state = " << events[i].state <<" at (" << events[i].x << ", " << events[i].y << ")" << std::endl;
 
         switch (events[i].state) {
-        case STATE_COVERED:
+        case MineGameGrid::State::STATE_COVERED:
             this->window->UpdateTexture(this->grid_texture, this->mine_covered, &rect);
             break;
 
-        case STATE_FLAGGED:
+        case MineGameGrid::State::STATE_FLAGGED:
             this->window->UpdateTexture(this->grid_texture, this->mine_flagged, &rect);
             break;
 
-        case STATE_FLAGGED_WRONG:
+        case MineGameGrid::State::STATE_FLAGGED_WRONG:
             this->window->UpdateTexture(this->grid_texture, this->mine_flagged_wrong, &rect);
             break;
 
-        case STATE_MINE_EXPLODE:
+        case MineGameGrid::State::STATE_MINE_EXPLODE:
             this->window->UpdateTexture(this->grid_texture, this->mine_open_red, &rect);
             break;
 
-        case STATE_MINE_OPEN:
+        case MineGameGrid::State::STATE_MINE_OPEN:
             this->window->UpdateTexture(this->grid_texture, this->mine_open_black, &rect);
             break;
 
-        case STATE_MINE_0:
+        case MineGameGrid::State::STATE_MINE_0:
             this->window->UpdateTexture(this->grid_texture, this->mine[0], &rect);
             break;
 
-        case STATE_MINE_1:
+        case MineGameGrid::State::STATE_MINE_1:
             this->window->UpdateTexture(this->grid_texture, this->mine[1], &rect);
             break;
 
-        case STATE_MINE_2:
+        case MineGameGrid::State::STATE_MINE_2:
             this->window->UpdateTexture(this->grid_texture, this->mine[2], &rect);
             break;
 
-        case STATE_MINE_3:
+        case MineGameGrid::State::STATE_MINE_3:
             this->window->UpdateTexture(this->grid_texture, this->mine[3], &rect);
             break;
 
-        case STATE_MINE_4:
+        case MineGameGrid::State::STATE_MINE_4:
             this->window->UpdateTexture(this->grid_texture, this->mine[4], &rect);
             break;
 
-        case STATE_MINE_5:
+        case MineGameGrid::State::STATE_MINE_5:
             this->window->UpdateTexture(this->grid_texture, this->mine[5], &rect);
             break;
 
-        case STATE_MINE_6:
+        case MineGameGrid::State::STATE_MINE_6:
             this->window->UpdateTexture(this->grid_texture, this->mine[6], &rect);
             break;
 
-        case STATE_MINE_7:
+        case MineGameGrid::State::STATE_MINE_7:
             this->window->UpdateTexture(this->grid_texture, this->mine[7], &rect);
             break;
 
-        case STATE_MINE_8:
+        case MineGameGrid::State::STATE_MINE_8:
             this->window->UpdateTexture(this->grid_texture, this->mine[8], &rect);
             break;
 
