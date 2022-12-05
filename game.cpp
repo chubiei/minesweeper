@@ -16,6 +16,7 @@ MineGame::MineGame()
     this->height = 0;
     this->mine_map = NULL;
     this->grid_state_map = NULL;
+    this->grid_dirty_map = NULL;
     this->mine_count = 0;
     this->flag_count = 0;
     this->remaining_count = 0;
@@ -69,6 +70,7 @@ void MineGame::SetCustom(int width, int height, int mine_count)
         for (int j = 0; j < this->width; j++) {
             this->mine_map[i][j] = 0;
             this->grid_state_map[i][j] = MineGameGrid::State::STATE_COVERED;
+            this->grid_dirty_map[i][j] = 0;
         }
     }
 }
@@ -84,6 +86,7 @@ void MineGame::Reset()
         for (int j = 0; j < this->width; j++) {
             this->mine_map[i][j] = 0;
             this->grid_state_map[i][j] = MineGameGrid::State::STATE_COVERED;
+            this->grid_dirty_map[i][j] = 0;
         }
     }
 }
@@ -100,7 +103,18 @@ MineGameGrid::State MineGame::GetGridState(int x, int y)
 
 void MineGame::GetDirtyGrids(std::vector<MineGameGrid> &grids)
 {
-    // TODO:
+    for (int y = 0; y < this->height; y++) {
+        for (int x = 0; x < this->width; x++) {
+            if (this->IsDirtyGrid(x, y)) {
+                MineGameGrid g;
+
+                g.state = this->GetGridState(x, y);
+                g.x = x;
+                g.y = y;
+                grids.push_back(g);
+            }
+        }
+    }
 }
 
 void MineGame::ClearDirtyGrids()
@@ -112,38 +126,36 @@ void MineGame::ClearDirtyGrids()
     }
 }
 
-void MineGame::TouchFlag(int x, int y, std::vector<MineGameGrid> &events)
+void MineGame::TouchFlag(int x, int y)
 {
     MineGameGrid e;
 
     std::cout << "MineGame::TouchFlag(x=" << x << ", y=" << y << ")" << std::endl;
 
+    if (!this->IsValidPoint(x, y)) {
+        std::cerr << "MineGame::TouchFlag(x=" << x << ", y=" << y << "): run time error due to invalid input" << std::endl;
+        return;
+    }
+
     if (this->game_state == MineGame::State::GAME_RUNNING || this->game_state == MineGame::State::GAME_READY) {
-        if (this->IsValidPoint(x, y)) {
-            if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
-                this->grid_state_map[y][x] = MineGameGrid::State::STATE_FLAGGED;
-                this->flag_count += 1;
-
-                e.state = MineGameGrid::State::STATE_FLAGGED;
-                e.x = x;
-                e.y = y;
-                events.push_back(e);
-            } else if (this->GetGridState(x, y) == MineGameGrid::State::STATE_FLAGGED) {
-                this->grid_state_map[y][x] = MineGameGrid::State::STATE_COVERED;
-                this->flag_count -= 1;
-
-                e.state = MineGameGrid::State::STATE_COVERED;
-                e.x = x;
-                e.y = y;
-                events.push_back(e);
-            }
+        if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
+            this->SetGridState(x, y, MineGameGrid::State::STATE_FLAGGED);
+            this->flag_count += 1;
+        } else if (this->GetGridState(x, y) == MineGameGrid::State::STATE_FLAGGED) {
+            this->SetGridState(x, y, MineGameGrid::State::STATE_COVERED);
+            this->flag_count -= 1;
         }
     }
 }
 
-void MineGame::Open(int x, int y, std::vector<MineGameGrid> &events)
+void MineGame::Open(int x, int y)
 {
-    std::cout << "Open(x=" << x << ", y=" << y << ")" << std::endl;
+    std::cout << "MineGame::Open(x=" << x << ", y=" << y << ")" << std::endl;
+
+    if (!this->IsValidPoint(x, y)) {
+        std::cerr << "MineGame::Open(x=" << x << ", y=" << y << "): run time error due to invalid input" << std::endl;
+        return;
+    }
 
     // lazy init
     if (this->game_state == MineGame::State::GAME_READY) {
@@ -160,20 +172,23 @@ void MineGame::Open(int x, int y, std::vector<MineGameGrid> &events)
     }
 
     if (this->game_state == MineGame::State::GAME_RUNNING) {
-        if (this->IsValidPoint(x, y)) {
-            if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
-                this->OpenRecursive(x, y, events);
+        if (this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
+            std::cout << "debug: x=" << x << ", y=" << y << ", has_mine = " << this->HasMine(x, y) << ", mine_map = " << this->mine_map[y][x] << std::endl;
 
-                // if game_state is changed inside OpenRecursive to GAME_WON, place all flags
-                if (this->game_state == MineGame::State::GAME_WON) {
-                    this->AppendAllFlags(events);
+            if (this->HasMine(x, y)) {
+                this->EndGame(x, y);
+            } else {
+                this->OpenRecursive(x, y);
+
+                if (this->remaining_count == 0) {
+                    this->WinGame();
                 }
             }
         }
     }
 }
 
-void MineGame::OpenFast(int x, int y, std::vector<MineGameGrid> &events)
+void MineGame::OpenFast(int x, int y)
 {
 }
 
@@ -305,167 +320,82 @@ void MineGame::FreeMap()
     this->height = 0;
 }
 
-void MineGame::UpdateStateDirectly(int x, int y, MineGameGrid::State state)
+void MineGame::EndGame(int explode_x, int explode_y)
 {
-    if (this->grid_state_map[y][x] == MineGameGrid::State::STATE_FLAGGED && state != MineGameGrid::State::STATE_FLAGGED) {
-        this->flag_count -= 1;
-    }
+    this->SetGridState(explode_x, explode_y, MineGameGrid::State::STATE_MINE_EXPLODE);
 
-    this->grid_state_map[y][x] = state;
-    this->remaining_count -= 1;
-
-    std::cout << "Flag count: " << this->flag_count << std::endl;
-    std::cout << "Remaining count: " << this->remaining_count << std::endl;
-
-    if (this->remaining_count == 0) {
-        this->game_state = MineGame::State::GAME_WON;
-        std::cout << "You won!!!" << std::endl;
-    }
-}
-
-MineGameGrid::State MineGame::UpdateStateAutomatically(int x, int y)
-{
-    MineGameGrid::State state;
-
-    switch (this->mine_map[y][x]) {
-    case -1:
-        state = MineGameGrid::State::STATE_MINE_OPEN;
-        break;
-
-    case 0:
-        state = MineGameGrid::State::STATE_MINE_0;
-        break;
-
-    case 1:
-        state = MineGameGrid::State::STATE_MINE_1;
-        break;
-
-    case 2:
-        state = MineGameGrid::State::STATE_MINE_2;
-        break;
-
-    case 3:
-        state = MineGameGrid::State::STATE_MINE_3;
-        break;
-
-    case 4:
-        state = MineGameGrid::State::STATE_MINE_4;
-        break;
-
-    case 5:
-        state = MineGameGrid::State::STATE_MINE_5;
-        break;
-
-    case 6:
-        state = MineGameGrid::State::STATE_MINE_6;
-        break;
-
-    case 7:
-        state = MineGameGrid::State::STATE_MINE_7;
-        break;
-
-    case 8:
-        state = MineGameGrid::State::STATE_MINE_8;
-        break;
-
-    default:
-        state = MineGameGrid::State::STATE_COVERED;
-        break;
-    }
-
-    this->UpdateStateDirectly(x, y, state);
-
-    return state;
-}
-
-void MineGame::ShowAllMines(std::vector<MineGameGrid> &events)
-{
-    // show all uncovered mines
+    // uncovered all mines
     for (int y = 0; y < this->height; y++) {
         for (int x = 0; x < this->width; x++) {
             if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
-                MineGameGrid e;
-
-                e.state = MineGameGrid::State::STATE_MINE_OPEN;
-                e.x = x;
-                e.y = y;
-
-                events.push_back(e);
+                this->SetGridState(x, y, MineGameGrid::State::STATE_MINE_OPEN);
             }
         }
     }
+
+    this->game_state = MineGame::State::GAME_LOST;
+    std::cout << "You've lost" << std::endl;
 }
 
-void MineGame::OpenRecursive(int x, int y, std::vector<MineGameGrid> &events)
-{
-    if (this->grid_state_map[y][x] == MineGameGrid::State::STATE_COVERED || this->grid_state_map[y][x] == MineGameGrid::State::STATE_FLAGGED) {
-        // case 1: explode on site
-        if (this->mine_map[y][x] < 0) {
-                MineGameGrid e;
-                e.state = MineGameGrid::State::STATE_MINE_EXPLODE;
-                e.x = x;
-                e.y = y;
-                events.push_back(e);
-
-                this->UpdateStateDirectly(x, y, MineGameGrid::State::STATE_MINE_EXPLODE);
-                this->ShowAllMines(events);
-
-                this->game_state = MineGame::State::GAME_LOST;
-                std::cout << "You've lost" << std::endl;
-        }
-        // case 2: we stop at mine_N
-        else if (this->mine_map[y][x] > 0) {
-            MineGameGrid e;
-
-            e.state = this->UpdateStateAutomatically(x, y);
-            e.x = x;
-            e.y = y;
-
-            events.push_back(e);
-        } 
-        // case 3: recursively open neighbors
-        else if (this->mine_map[y][x] == 0) {
-            MineGameGrid e;
-
-            e.state = this->UpdateStateAutomatically(x, y);
-            e.x = x;
-            e.y = y;
-
-            events.push_back(e);
-
-            int up = y - 1, down = y + 1, left = x - 1, right = x + 1;
-
-            if (this->IsValidPoint(left, up)) this->OpenRecursive(left, up, events);
-            if (this->IsValidPoint(left, y)) this->OpenRecursive(left, y, events);
-            if (this->IsValidPoint(left, down)) this->OpenRecursive(left, down, events);
-            if (this->IsValidPoint(x, up)) this->OpenRecursive(x, up, events);
-            if (this->IsValidPoint(x, down)) this->OpenRecursive(x, down, events);
-            if (this->IsValidPoint(right, up)) this->OpenRecursive(right, up, events);
-            if (this->IsValidPoint(right, y)) this->OpenRecursive(right, y, events);
-            if (this->IsValidPoint(right, down)) this->OpenRecursive(right, down, events);
-        }
-    }
-}
-
-void MineGame::AppendAllFlags(std::vector<MineGameGrid> &events)
+void MineGame::WinGame()
 {
     // show all uncovered flags
     for (int y = 0; y < this->height; y++) {
         for (int x = 0; x < this->width; x++) {
             if (this->HasMine(x, y) && this->GetGridState(x, y) == MineGameGrid::State::STATE_COVERED) {
-                MineGameGrid e;
-
-                e.state = MineGameGrid::State::STATE_FLAGGED;
-                e.x = x;
-                e.y = y;
-
-                events.push_back(e);
+                this->SetGridState(x, y, MineGameGrid::State::STATE_FLAGGED);
             }
         }
     }
 
     this->flag_count = this->mine_count;
+
+    this->game_state = MineGame::State::GAME_WON;
+    std::cout << "You won!!!" << std::endl;
 }
+
+void MineGame::OpenRecursive(int x, int y)
+{
+    if (!this->IsValidPoint(x, y)) {
+        return;
+    }
+
+    if (this->grid_state_map[y][x] != MineGameGrid::State::STATE_COVERED && this->grid_state_map[y][x] != MineGameGrid::State::STATE_FLAGGED) {
+        return;
+    }
+
+    // NOTE: should not reach to any mine in OpenRecursive
+    if (this->mine_map[y][x] < 0) {
+        std::cerr << "MineGame::OpenRecursive(x=" << x << ", y=" << y << "): run time error" << std::endl;
+        return;
+    }
+
+    // adjust flag_count and remaining count
+    if (this->GetGridState(x, y) == MineGameGrid::State::STATE_FLAGGED) {
+        this->flag_count -= 1;
+    }
+
+    this->remaining_count -= 1;
+
+    // NOTE: update grid based on mine count
+    // we use this conversion trick because MineGame::State declaration is carefully arranged
+    this->SetGridState(x, y, (MineGameGrid::State)this->mine_map[y][x]);
+
+    // expand if we click on a 0
+    if (this->mine_map[y][x] == 0) {
+        int up = y - 1, down = y + 1, left = x - 1, right = x + 1;
+
+        this->OpenRecursive(left, up);
+        this->OpenRecursive(left, y);
+        this->OpenRecursive(left, down);
+        this->OpenRecursive(x, up);
+        this->OpenRecursive(x, down);
+        this->OpenRecursive(right, up);
+        this->OpenRecursive(right, y);
+        this->OpenRecursive(right, down);
+    }
+}
+
 
 bool MineGame::IsValidPoint(int x, int y)
 {
@@ -500,8 +430,10 @@ bool MineGame::IsDirtyGrid(int x, int y)
 
 void MineGame::SetGridState(int x, int y, MineGameGrid::State state)
 {
-    this->grid_state_map[y][x] = state;
-    this->grid_dirty_map[y][x] = 1;
+    if (this->grid_state_map[y][x] != state) {
+        this->grid_state_map[y][x] = state;
+        this->grid_dirty_map[y][x] = 1;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

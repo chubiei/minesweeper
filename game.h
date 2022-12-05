@@ -7,20 +7,20 @@
 class MineGameGrid {
     public:
         enum State {
-            STATE_COVERED, 
-            STATE_FLAGGED,
-            STATE_FLAGGED_WRONG, 
-            STATE_MINE_EXPLODE, 
-            STATE_MINE_OPEN, 
-            STATE_MINE_0,
-            STATE_MINE_1,
-            STATE_MINE_2,
-            STATE_MINE_3,
-            STATE_MINE_4,
-            STATE_MINE_5,
-            STATE_MINE_6,
-            STATE_MINE_7,
-            STATE_MINE_8
+            STATE_MINE_0 = 0,
+            STATE_MINE_1 = 1,
+            STATE_MINE_2 = 2,
+            STATE_MINE_3 = 3,
+            STATE_MINE_4 = 4,
+            STATE_MINE_5 = 5,
+            STATE_MINE_6 = 6,
+            STATE_MINE_7 = 7,
+            STATE_MINE_8 = 8,
+            STATE_COVERED = 9, 
+            STATE_FLAGGED = 10,
+            STATE_FLAGGED_WRONG = 11, 
+            STATE_MINE_EXPLODE = 12, 
+            STATE_MINE_OPEN = 13
         };
 
     public:
@@ -62,9 +62,9 @@ class MineGame {
         void GetDirtyGrids(std::vector<MineGameGrid> &grids);
         void ClearDirtyGrids();
 
-        void TouchFlag(int x, int y, std::vector<MineGameGrid> &events);
-        void Open(int x, int y, std::vector<MineGameGrid> &events);
-        void OpenFast(int x, int y, std::vector<MineGameGrid> &events);
+        void TouchFlag(int x, int y);
+        void Open(int x, int y);
+        void OpenFast(int x, int y);
 
     private:
         void InitMines(int skip_x, int skip_y);
@@ -72,12 +72,9 @@ class MineGame {
         int AllocateMap(int width, int height);
         void FreeMap();
 
-        void UpdateStateDirectly(int x, int y, MineGameGrid::State state);
-        MineGameGrid::State UpdateStateAutomatically(int x, int y);
-        
-        void ShowAllMines(std::vector<MineGameGrid> &events);
-        void OpenRecursive(int x, int y, std::vector<MineGameGrid> &events);
-        void AppendAllFlags(std::vector<MineGameGrid> &events);
+        void EndGame(int explode_x, int explode_y);
+        void WinGame();
+        void OpenRecursive(int x, int y);
 
         bool IsValidPoint(int x, int y);
         bool HasMine(int x, int y);
