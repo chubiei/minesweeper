@@ -59,13 +59,16 @@ class MineGame {
 
         State GetGameState();
         MineGameGrid::State GetGridState(int x, int y);
+        void GetDirtyGrids(std::vector<MineGameGrid> &grids);
+        void ClearDirtyGrids();
+
         void TouchFlag(int x, int y, std::vector<MineGameGrid> &events);
         void Open(int x, int y, std::vector<MineGameGrid> &events);
         void OpenFast(int x, int y, std::vector<MineGameGrid> &events);
 
     private:
         void InitMines(int skip_x, int skip_y);
-        bool HasMine(int x, int y);
+
         int AllocateMap(int width, int height);
         void FreeMap();
 
@@ -75,7 +78,12 @@ class MineGame {
         void ShowAllMines(std::vector<MineGameGrid> &events);
         void OpenRecursive(int x, int y, std::vector<MineGameGrid> &events);
         void AppendAllFlags(std::vector<MineGameGrid> &events);
+
         bool IsValidPoint(int x, int y);
+        bool HasMine(int x, int y);
+
+        bool IsDirtyGrid(int x, int y);
+        void SetGridState(int x, int y, MineGameGrid::State state);
 
     private:
         int width;
@@ -88,6 +96,8 @@ class MineGame {
 
         // represent user interface state
         MineGameGrid::State **grid_state_map;
+        int **grid_dirty_map;
+
         State game_state;
 };
 

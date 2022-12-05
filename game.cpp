@@ -98,6 +98,20 @@ MineGameGrid::State MineGame::GetGridState(int x, int y)
     return this->grid_state_map[y][x];
 }
 
+void MineGame::GetDirtyGrids(std::vector<MineGameGrid> &grids)
+{
+    // TODO:
+}
+
+void MineGame::ClearDirtyGrids()
+{
+    for (int y = 0; y < this->height; y++) {
+        for (int x = 0; x < this->width; x++) {
+            grid_dirty_map[y][x] = 0;
+        }
+    }
+}
+
 void MineGame::TouchFlag(int x, int y, std::vector<MineGameGrid> &events)
 {
     MineGameGrid e;
@@ -234,26 +248,18 @@ void MineGame::InitMines(int skip_x, int skip_y)
     this->game_state = MineGame::State::GAME_RUNNING;
 }
 
-bool MineGame::HasMine(int x, int y)
-{
-    if (this->IsValidPoint(x, y)) {
-        if (this->mine_map[y][x] == -1) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 int MineGame::AllocateMap(int width, int height)
 {
     if (width > 0 && height > 0) {
         // allocate mine map and flag map
         this->mine_map = new int* [height];
         this->grid_state_map = new MineGameGrid::State* [height];
+        this->grid_dirty_map = new int* [height];
+
         for (int i = 0; i < height; i++) {
             this->mine_map[i] = new int [width];
             this->grid_state_map[i] = new MineGameGrid::State [width];
+            this->grid_dirty_map[i] = new int [width];
         }
 
         this->width = width;
@@ -283,6 +289,16 @@ void MineGame::FreeMap()
 
         delete [] this->grid_state_map;
         this->grid_state_map = NULL;
+    }
+
+    // free dirty map
+    if (this->grid_dirty_map != NULL) {
+        for (int i = 0; i < this->height; i++) {
+            delete [] this->grid_dirty_map[i];
+        }
+
+        delete [] this->grid_dirty_map;
+        this->grid_dirty_map = NULL;
     }
 
     this->width = 0;
@@ -458,6 +474,34 @@ bool MineGame::IsValidPoint(int x, int y)
     } else {
         return false;
     }
+}
+
+bool MineGame::HasMine(int x, int y)
+{
+    if (this->IsValidPoint(x, y)) {
+        if (this->mine_map[y][x] == -1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool MineGame::IsDirtyGrid(int x, int y) 
+{
+    if (this->IsValidPoint(x, y)) {
+        if (this->grid_dirty_map[y][x] == 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void MineGame::SetGridState(int x, int y, MineGameGrid::State state)
+{
+    this->grid_state_map[y][x] = state;
+    this->grid_dirty_map[y][x] = 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
