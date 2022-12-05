@@ -87,7 +87,7 @@ class MineGame {
         int **mine_map;
 
         // represent user interface state
-        MineGameGrid::State **state_map;
+        MineGameGrid::State **grid_state_map;
         State game_state;
 };
 
