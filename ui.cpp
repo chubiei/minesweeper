@@ -15,6 +15,96 @@
 #define MINE_GRID_EDGE_MARGIN 2
 #define MINE_GRID_MINE_SIZE 24
 
+////////////////////////////////////////////////////////////////////////////////////
+MineGameTimer::MineGameTimer()
+{
+    this->event_id = (Uint32)-1;
+    this->timer_id = 0;
+    this->interval = 0;
+}
+
+MineGameTimer::~MineGameTimer()
+{
+    this->Remove();
+}
+
+
+int MineGameTimer::Add(int second)
+{
+    if (this->event_id == (Uint32(-1))) {
+        Uint32 eid;
+
+        eid = SDL_RegisterEvents(1);
+        if (eid == (Uint32)(-1)) {
+            std::cerr << "SDL_RegisterEvents failed with error: " << SDL_GetError() << std::endl;
+            return -1;
+        }
+
+        std::cout << "Register event id = " << eid << std::endl;
+        this->event_id = eid;
+    }
+
+    if (this->interval == 0) {
+        SDL_TimerID tid;
+        Uint32 interval;
+
+        interval = second * 1000;
+        tid = SDL_AddTimer(interval, MineGameTimer::TimerCallback, this);
+        if (tid == 0) {
+            std::cerr << "SDL_AddTimer failed with error: " << SDL_GetError() << std::endl;
+            return -1;
+        }
+
+        std::cout << "Add timer with id = " << tid << ", interval = " << interval << std::endl;
+        this->timer_id = tid;
+        this->interval = interval;
+    }
+
+    return 0;
+}
+
+void MineGameTimer::Remove()
+{
+    if (this->interval != 0) {
+        SDL_RemoveTimer(this->timer_id);
+        this->timer_id = 0;
+        this->interval = 0;
+    }
+}
+
+SDL_TimerID MineGameTimer::GetId() const
+{
+    return this->timer_id;
+}
+
+Uint32 MineGameTimer::GetEventId() const
+{
+    return this->event_id;
+}
+
+Uint32 MineGameTimer::GetInterval() const
+{
+    return this->interval;
+}
+
+Uint32 MineGameTimer::TimerCallback(Uint32 interval, void *param)
+{
+    SDL_Event event;
+    MineGameTimer *timer;
+
+    timer = (MineGameTimer*)param;
+
+    SDL_memset(&event, 0, sizeof(event)); /* or SDL_zero(event) */
+    event.type = timer->GetEventId();
+    event.user.code = 0;
+    event.user.data1 = timer;
+    event.user.data2 = 0;
+
+    SDL_PushEvent(&event);
+
+    return timer->GetInterval();
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 MineGameWindowUI::MineGameWindowUI(MineGame *game)
@@ -28,6 +118,8 @@ MineGameWindowUI::MineGameWindowUI(MineGame *game)
     this->face_button = NULL;
     this->mine_counter = NULL;
     this->time_counter = NULL;
+
+    this->count_down_timer = NULL;
 
     this->game = game;
 }
@@ -56,6 +148,9 @@ int MineGameWindowUI::CreateComponents()
     this->mine_grid->LoadResources();
     this->mine_grid->SetGameSize(this->game->GetWidth(), this->game->GetHeight());
 
+    // timer
+    this->count_down_timer = new MineGameTimer();
+
     this->ResizeWindow();
     // show window 
     //SDL_ShowWindow(this->window);
@@ -65,6 +160,11 @@ int MineGameWindowUI::CreateComponents()
 
 void MineGameWindowUI::DestroyComponents()
 {
+    if (this->count_down_timer != NULL) {
+        delete this->count_down_timer;
+        this->count_down_timer = NULL;
+    }
+
     if (this->mine_grid != NULL) {
         delete this->mine_grid;
         this->mine_grid = NULL;
@@ -138,7 +238,8 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
         SDL_UserEvent *e = (SDL_UserEvent*)base_event;
 
         //this->mine_counter->HandleUserEvent(e);
-        this->time_counter->HandleUserEvent(e);
+        this->time_counter->IncreaseCount();
+        this->time_counter->Redraw();
 
     }    
 
@@ -146,13 +247,13 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
     int new_flag_count = this->game->GetFlagCount();
     
     if (old_state == MineGame::State::GAME_READY && new_state == MineGame::State::GAME_RUNNING) {
-        this->time_counter->AddTimer(1);
+        this->count_down_timer->Add(1);
     } else if (new_state == MineGame::State::GAME_WON) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_WIN);
-        this->time_counter->RemoveTimer();
+        this->count_down_timer->Remove();
     } else if (new_state == MineGame::State::GAME_LOST) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_LOSE);
-        this->time_counter->RemoveTimer();
+        this->count_down_timer->Remove();
     }
 
     if (old_flag_count != new_flag_count) {
@@ -234,10 +335,11 @@ void MineGameWindowUI::GameReset()
 
     this->time_counter->SetCount(0);
     this->time_counter->Redraw();
-    this->time_counter->RemoveTimer();
 
     this->mine_counter->SetCount(this->game->GetFlagCount());
     this->mine_counter->Redraw();
+
+    this->count_down_timer->Remove();
 }
 
 void MineGameWindowUI::GameGetDirtyGrids(std::vector<MineGameGrid> &grids)
@@ -421,10 +523,6 @@ CounterUI::CounterUI(MineGameWindowUI *window)
     this->digit3_rect->y = 0;
     this->digit3_rect->w = COUNTER_DIGIT_WIDTH;
     this->digit3_rect->h = COUNTER_DIGIT_HEIGHT;
-
-    this->timer_event_id = (Uint32)-1;
-    this->timer_id = 0;
-    this->timer_interval = 0;
 }
 
 CounterUI::~CounterUI()
@@ -535,8 +633,6 @@ void CounterUI::ReleaseResources()
         SDL_DestroyTexture(this->background);
         this->background = NULL;
     }
-
-    this->RemoveTimer();
 }
 
 int CounterUI::Redraw()
@@ -547,49 +643,6 @@ int CounterUI::Redraw()
     this->window->UpdateWindowTexture(this->digit[this->digit3], this->digit3_rect);
 
     return 0;
-}
-
-int CounterUI::AddTimer(int second)
-{
-    if (this->timer_event_id == (Uint32(-1))) {
-        Uint32 eid;
-
-        eid = SDL_RegisterEvents(1);
-        if (eid == (Uint32)(-1)) {
-            std::cerr << "SDL_RegisterEvents failed with error: " << SDL_GetError() << std::endl;
-            return -1;
-        }
-
-        std::cout << "Register event id = " << eid << std::endl;
-        this->timer_event_id = eid;
-    }
-
-    if (this->timer_interval == 0) {
-        SDL_TimerID tid;
-        Uint32 interval;
-
-        interval = second * 1000;
-        tid = SDL_AddTimer(interval, CounterUI::TimerCallback, this);
-        if (tid == 0) {
-            std::cerr << "SDL_AddTimer failed with error: " << SDL_GetError() << std::endl;
-            return -1;
-        }
-
-        std::cout << "Add timer with id = " << tid << ", interval = " << interval << std::endl;
-        this->timer_id = tid;
-        this->timer_interval = interval;
-    }
-
-    return 0;
-}
-
-void CounterUI::RemoveTimer()
-{
-    if (this->timer_interval != 0) {
-        SDL_RemoveTimer(this->timer_id);
-        this->timer_id = 0;
-        this->timer_interval = 0;
-    }
 }
 
 int CounterUI::HandleMouseMotionEvent(SDL_MouseMotionEvent *event)
@@ -604,48 +657,6 @@ int CounterUI::HandleMouseButtonEvent(SDL_MouseButtonEvent *event)
     return 0;
 }
 
-int CounterUI::HandleUserEvent(SDL_UserEvent *event)
-{
-    if (event->type == this->GetTimerEventId()) {
-        this->IncreaseCount();
-        this->Redraw();
-    }
-
-    return 0;
-}
-
-SDL_TimerID CounterUI::GetTimerId() const
-{
-    return this->timer_id;
-}
-
-Uint32 CounterUI::GetTimerEventId() const
-{
-    return this->timer_event_id;
-}
-
-Uint32 CounterUI::GetTimerInterval() const
-{
-    return this->timer_interval;
-}
-
-Uint32 CounterUI::TimerCallback(Uint32 interval, void *param)
-{
-    SDL_Event event;
-    CounterUI *counter;
-
-    counter = (CounterUI*)param;
-
-    SDL_memset(&event, 0, sizeof(event)); /* or SDL_zero(event) */
-    event.type = counter->GetTimerEventId();
-    event.user.code = 0;
-    event.user.data1 = counter;
-    event.user.data2 = 0;
-
-    SDL_PushEvent(&event);
-
-    return counter->GetTimerInterval();
-}
 
 ////////////////////////////////////////////////////////////////////////////////////
 FaceButtonUI::FaceButtonUI(MineGameWindowUI *window)

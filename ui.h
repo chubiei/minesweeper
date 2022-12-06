@@ -8,6 +8,27 @@ class CounterUI;
 class FaceButtonUI;
 class MineGridUI;
 
+class MineGameTimer {
+    public:
+        MineGameTimer();
+        ~MineGameTimer();
+
+        int Add(int second);
+        void Remove();
+
+        SDL_TimerID GetId() const;
+        Uint32 GetEventId() const;
+        Uint32 GetInterval() const;
+
+    private:
+        static Uint32 TimerCallback(Uint32 interval, void *param);
+
+    private:
+        Uint32 interval;
+        SDL_TimerID timer_id;
+        Uint32 event_id;
+};
+
 class MineGameWindowUI {
     public:
         MineGameWindowUI(MineGame *game);
@@ -49,6 +70,9 @@ class MineGameWindowUI {
         CounterUI *mine_counter;
         CounterUI *time_counter;
 
+        // count down timer
+        MineGameTimer *count_down_timer;
+
         // game
         MineGame *game;
 };
@@ -73,21 +97,10 @@ class CounterUI {
 
         int Redraw();
 
-        // timer functions
-        int AddTimer(int second);
-        void RemoveTimer();
-
         // event handlers
         int HandleMouseMotionEvent(SDL_MouseMotionEvent *event);
         int HandleMouseButtonEvent(SDL_MouseButtonEvent *event);
         int HandleUserEvent(SDL_UserEvent *event);
-
-    private:
-        SDL_TimerID GetTimerId() const;
-        Uint32 GetTimerEventId() const;
-        Uint32 GetTimerInterval() const;
-    
-        static Uint32 TimerCallback(Uint32 interval, void *param);
 
     private:
         // owner window
@@ -108,11 +121,6 @@ class CounterUI {
         int digit1;
         int digit2;
         int digit3;
-
-        // timer
-        Uint32 timer_interval;
-        SDL_TimerID timer_id;
-        Uint32 timer_event_id;
 };
 
 class FaceButtonUI {
