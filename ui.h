@@ -8,6 +8,7 @@ class CounterUI;
 class FaceButtonUI;
 class MineGridUI;
 class SplashScreen;
+class MineGameMenuBar;
 
 class MineGameTimer {
     public:
@@ -46,6 +47,7 @@ class MineGameWindowUI {
         // helper function for components
         SDL_Texture *LoadTextureFromFile(const char *path);
         SDL_Texture *CreateTexture(int width, int height);
+        SDL_Window *GetSDLWindow();
         int UpdateWindowTexture(SDL_Texture *texture, const SDL_Rect *rect);
         int UpdateTexture(SDL_Texture *updated_texture, SDL_Texture *texture, const SDL_Rect *rect);
         void GameOpen(int x, int y);
@@ -54,14 +56,15 @@ class MineGameWindowUI {
         void GameGetDirtyGrids(std::vector<MineGameGrid> &grids);
 
     private:
-        int CreateWindow();
-        void DestroyWindow();
+        int CreateSDLWindow();
+        void DestroySDLWindow();
 
         int ResizeWindow();
         int RedrawWindow();
         int RefreshWindow();
 
         int DispatchEvent(SDL_Event *e);
+        int HandleSysWMEvent(SDL_SysWMEvent *e);
         int HandleTimerEvent(SDL_UserEvent *e);
 
         void ShowWinningSplash();
@@ -80,6 +83,7 @@ class MineGameWindowUI {
         CounterUI *mine_counter;
         CounterUI *time_counter;
         SplashScreen *winning_splash;
+        MineGameMenuBar *menu_bar;
 
         // splash timer
         MineGameTimer *splash_timer;
@@ -248,6 +252,18 @@ class MineGridUI {
 
         // component rect
         SDL_Rect *rect;
+};
+
+class MineGameMenuBar {
+    public:
+        MineGameMenuBar(MineGameWindowUI *window);
+        ~MineGameMenuBar();
+
+        int AttachMenu();
+        void CheckItem(int id);
+
+    private:
+        MineGameWindowUI *window;
 };
 
 #endif

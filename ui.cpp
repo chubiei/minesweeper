@@ -133,6 +133,7 @@ MineGameWindowUI::MineGameWindowUI(MineGame *game)
     this->face_button = NULL;
     this->mine_counter = NULL;
     this->time_counter = NULL;
+    this->menu_bar = NULL;
 
     this->winning_splash = NULL;
     this->splash_timer = NULL;
@@ -149,7 +150,10 @@ MineGameWindowUI::~MineGameWindowUI()
 
 int MineGameWindowUI::CreateComponents()
 {
-    this->CreateWindow();
+    this->CreateSDLWindow();
+
+    this->menu_bar = new MineGameMenuBar(this);
+    this->menu_bar->AttachMenu();
 
     this->time_counter = new CounterUI(this);
     this->time_counter->LoadResources();
@@ -219,11 +223,19 @@ void MineGameWindowUI::DestroyComponents()
         this->time_counter = NULL;
     }
 
-    this->DestroyWindow();
+    if (this->menu_bar != NULL) {
+        delete this->menu_bar;
+        this->menu_bar = NULL;
+    }
+
+    this->DestroySDLWindow();
 }
 
 int MineGameWindowUI::ProcessEvents()
 {
+    // SYSWMEVENT is disabled by default
+    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+
     while (true) {
         SDL_Event e; 
 
@@ -267,12 +279,19 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
         this->face_button->HandleMouseButtonEvent(e);
         this->mine_grid->HandleMouseButtonEvent(e);
     }
+    // SDL_SYSWMEVENT
+    else if (base_event->type == SDL_SYSWMEVENT) {
+        SDL_SysWMEvent *e = (SDL_SysWMEvent*)base_event;
+
+        this->HandleSysWMEvent(e);
+    }
     // user defined events
     else if (SDL_USEREVENT <= base_event->type && base_event->type < SDL_LASTEVENT) {
         SDL_UserEvent *e = (SDL_UserEvent*)base_event;
 
         this->HandleTimerEvent(e);
-    }    
+    } 
+
 
     MineGame::State new_state = this->game->GetGameState();
     
@@ -298,6 +317,31 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
     if (old_flag_count != new_flag_count) {
         this->mine_counter->SetCount(this->game->GetMineCount() - new_flag_count);
         this->mine_counter->Redraw();
+    }
+
+    return 0;
+}
+
+int MineGameWindowUI::HandleSysWMEvent(SDL_SysWMEvent *e)
+{
+    SDL_SysWMmsg *msg = e->msg;
+
+    if (msg->msg.win.msg == WM_COMMAND) {
+        UINT id = LOWORD(msg->msg.win.wParam);
+
+        std::cout << "check item = " << id << std::endl;
+        this->menu_bar->CheckItem(id);
+
+        if (id == 0) {
+            this->game->SetBeginner();
+        } else if (id == 1) {
+            this->game->SetIntermediate();
+        } else if (id == 2) {
+            this->game->SetExpert();
+        }
+
+        this->GameReset();
+        this->ResizeWindow();
     }
 
     return 0;
@@ -374,6 +418,11 @@ SDL_Texture *MineGameWindowUI::CreateTexture(int width, int height)
     return texture;
 }
 
+SDL_Window *MineGameWindowUI::GetSDLWindow()
+{
+    return this->window;
+}
+
 void MineGameWindowUI::GameOpen(int x, int y)
 {
     this->game->Open(x, y);
@@ -409,7 +458,7 @@ void MineGameWindowUI::GameGetDirtyGrids(std::vector<MineGameGrid> &grids)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-int MineGameWindowUI::CreateWindow()
+int MineGameWindowUI::CreateSDLWindow()
 {
     int width = 10, height = 10;
     SDL_Window *new_window;
@@ -501,7 +550,7 @@ int MineGameWindowUI::ResizeWindow()
     return 0;
 }
 
-void MineGameWindowUI::DestroyWindow()
+void MineGameWindowUI::DestroySDLWindow()
 {
     if (this->window_texture != NULL) {
         SDL_DestroyTexture(this->window_texture);
@@ -1361,3 +1410,56 @@ int MineGridUI::RedrawDirtyGrids()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
+// FIXME: remove global
+static HMENU global_menubar;
+static HMENU global_menu;
+
+MineGameMenuBar::MineGameMenuBar(MineGameWindowUI *window)
+{
+    this->window = window;
+}
+
+MineGameMenuBar::~MineGameMenuBar()
+{
+    // DestroyMenu
+    // - A menu that is assigned to a window is automatically destroyed when the application closes.
+}
+
+int MineGameMenuBar::AttachMenu()
+{
+    SDL_SysWMinfo info;
+
+    SDL_VERSION(&info.version);
+
+    if (SDL_GetWindowWMInfo(this->window->GetSDLWindow(), &info) != SDL_TRUE) {
+        std::cerr << "SDL_GetWindowWMInfo: " << SDL_GetError() << std::endl;
+        return -1;
+    }
+
+    HWND hwnd = info.info.win.window;
+
+    global_menubar = CreateMenu();
+    global_menu = CreateMenu();
+
+    AppendMenu(global_menubar, MF_POPUP, (UINT_PTR)global_menu, "File");
+    AppendMenu(global_menu, MF_STRING, 0, "Easy");
+    AppendMenu(global_menu, MF_STRING, 1, "Intermediate");
+    AppendMenu(global_menu, MF_STRING, 2, "Expert");
+    AppendMenu(global_menu, MF_SEPARATOR, -1, NULL);
+    AppendMenu(global_menu, MF_STRING, 3, "Exit");
+
+    SetMenu(hwnd, global_menubar);
+
+    return 0;
+}
+
+void MineGameMenuBar::CheckItem(int id)
+{
+    for (int i = 0; i < 3; i++) {
+        if (id == i) {
+            CheckMenuItem(global_menu, (UINT)i, MF_CHECKED);
+        } else {
+            CheckMenuItem(global_menu, (UINT)i, MF_UNCHECKED);
+        }
+    }
+}

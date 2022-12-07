@@ -8,6 +8,7 @@
 
 #ifdef __MINGW32__
 #include <SDL.h>
+#include <SDL_syswm.h>
 #include <SDL_image.h>
 #endif
 
