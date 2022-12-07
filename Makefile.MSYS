@@ -1,7 +1,9 @@
 # target
-BIN = mine.exe
-#SOURCES = main.cpp game.cpp ui_window.cpp ui_component.cpp
-SOURCES = main.cpp game.cpp ui.cpp
+MINE = mine.exe
+MINE_SOURCES = main.cpp game.cpp ui.cpp
+MINE_CMD = mine-cmd.exe
+MINE_CMD_SOURCES = cmd.cpp game.cpp
+BIN = $(MINE) $(MINE_CMD)
 APP = Minesweeper
 
 # commandline tools
@@ -21,28 +23,31 @@ CFLAGS = -Wextra -g -O2 -I$(SDL_IMAGE_PATH)/include/SDL2 -I$(SDL_PATH)/include/S
 # - statically link standard libraries
 LDFLAGS = -L$(SDL_PATH)/lib -L$(SDL_IMAGE_PATH)/lib -lmingw32 -lSDL2main -lSDL2 -lSDL2_image
 LDFLAGS += -static-libstdc++ -static-libgcc
-# - remove console window
-LDFLAGS += -Wl,-subsystem,windows
+
+#This is the target that compiles our executable
+.PHONY: all
+all: $(BIN)
 
 %.o: %.cpp
 	$(COMPILER) $(CFLAGS) -o $@ $<
 
-$(BIN): $(SOURCES:.cpp=.o)
+$(MINE): $(MINE_SOURCES:.cpp=.o)
+	# additional flag to build Windows program
+	$(LINKER) -o $@ $^ $(LDFLAGS) -Wl,-subsystem,windows
+
+$(MINE_CMD): $(MINE_CMD_SOURCES:.cpp=.o)
 	$(LINKER) -o $@ $^ $(LDFLAGS)
 
 .PHONY: dist
 dist: $(BIN)
 	rm -rf $(APP)
 	mkdir $(APP)
-	cp $(BIN) $(APP)/$(BIN)
+	cp $(MINE) $(APP)/$(MINE)
+	cp $(MINE_CMD) $(APP)/$(MINE_CMD)
 	cp -rf images $(APP)/images
 	cp $(MINGW_RUNTIME_PATH)/bin/libwinpthread-1.dll $(APP)
 	cp $(SDL_IMAGE_PATH)/bin/SDL2_image.dll $(APP)
 	cp $(SDL_PATH)/bin/SDL2.dll $(APP)
-
-#This is the target that compiles our executable
-.PHONY: all
-all: dist
 
 .PHONY: clean
 clean:
