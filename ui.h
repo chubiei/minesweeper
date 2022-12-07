@@ -7,18 +7,21 @@
 class CounterUI;
 class FaceButtonUI;
 class MineGridUI;
+class SplashScreen;
 
 class MineGameTimer {
     public:
         MineGameTimer();
         ~MineGameTimer();
 
-        int Add(int second);
+        int Add(Uint32 millisecond);
         void Remove();
 
         SDL_TimerID GetId() const;
         Uint32 GetEventId() const;
         Uint32 GetInterval() const;
+        Uint32 GetTickCount() const;
+        Uint64 GetStartTick() const;
 
     private:
         static Uint32 TimerCallback(Uint32 interval, void *param);
@@ -27,6 +30,8 @@ class MineGameTimer {
         Uint32 interval;
         SDL_TimerID timer_id;
         Uint32 event_id;
+        Uint32 tick_count;
+        Uint64 start_tick;
 };
 
 class MineGameWindowUI {
@@ -53,9 +58,14 @@ class MineGameWindowUI {
         void DestroyWindow();
 
         int ResizeWindow();
+        int RedrawWindow();
         int RefreshWindow();
 
         int DispatchEvent(SDL_Event *e);
+        int HandleTimerEvent(SDL_UserEvent *e);
+
+        void ShowWinningSplash();
+        void StopWinningSplash();
 
     private:
         // GUI for window
@@ -69,6 +79,10 @@ class MineGameWindowUI {
         FaceButtonUI *face_button;
         CounterUI *mine_counter;
         CounterUI *time_counter;
+        SplashScreen *winning_splash;
+
+        // splash timer
+        MineGameTimer *splash_timer;
 
         // count down timer
         MineGameTimer *count_down_timer;
@@ -77,6 +91,26 @@ class MineGameWindowUI {
         MineGame *game;
 };
 
+class SplashScreen {
+    public:
+        SplashScreen(MineGameWindowUI *window);
+        ~SplashScreen();
+
+        void SetLocation(int x, int y);
+
+        int LoadResources();
+        void ReleaseResources();
+
+        void Show();
+        void Update(Uint64 elapse_time_ms);
+        void Hide();
+
+    private:
+        // owner window
+        MineGameWindowUI *window;
+        Uint8 alpha;
+        SDL_Texture *texture;
+};
 
 class CounterUI {
     public:

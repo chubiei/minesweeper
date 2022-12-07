@@ -21,6 +21,8 @@ MineGameTimer::MineGameTimer()
     this->event_id = (Uint32)-1;
     this->timer_id = 0;
     this->interval = 0;
+    this->tick_count = 0;
+    this->start_tick = 0;
 }
 
 MineGameTimer::~MineGameTimer()
@@ -29,7 +31,7 @@ MineGameTimer::~MineGameTimer()
 }
 
 
-int MineGameTimer::Add(int second)
+int MineGameTimer::Add(Uint32 millisecond)
 {
     if (this->event_id == (Uint32(-1))) {
         Uint32 eid;
@@ -46,18 +48,18 @@ int MineGameTimer::Add(int second)
 
     if (this->interval == 0) {
         SDL_TimerID tid;
-        Uint32 interval;
 
-        interval = second * 1000;
-        tid = SDL_AddTimer(interval, MineGameTimer::TimerCallback, this);
+        tid = SDL_AddTimer(millisecond, MineGameTimer::TimerCallback, this);
         if (tid == 0) {
             std::cerr << "SDL_AddTimer failed with error: " << SDL_GetError() << std::endl;
             return -1;
         }
 
-        std::cout << "Add timer with id = " << tid << ", interval = " << interval << std::endl;
+        std::cout << "Add timer with id = " << tid << ", interval = " << millisecond << "ms" << std::endl;
         this->timer_id = tid;
-        this->interval = interval;
+        this->interval = millisecond;
+        this->tick_count = 0;
+        this->start_tick = SDL_GetTicks64();
     }
 
     return 0;
@@ -69,6 +71,8 @@ void MineGameTimer::Remove()
         SDL_RemoveTimer(this->timer_id);
         this->timer_id = 0;
         this->interval = 0;
+        this->tick_count = 0;
+        this->start_tick = 0;
     }
 }
 
@@ -87,12 +91,23 @@ Uint32 MineGameTimer::GetInterval() const
     return this->interval;
 }
 
+Uint32 MineGameTimer::GetTickCount() const
+{
+    return this->tick_count;
+}
+
+Uint64 MineGameTimer::GetStartTick() const
+{
+    return this->start_tick;
+}
+
 Uint32 MineGameTimer::TimerCallback(Uint32 interval, void *param)
 {
     SDL_Event event;
     MineGameTimer *timer;
 
     timer = (MineGameTimer*)param;
+    timer->tick_count += 1;
 
     SDL_memset(&event, 0, sizeof(event)); /* or SDL_zero(event) */
     event.type = timer->GetEventId();
@@ -118,6 +133,9 @@ MineGameWindowUI::MineGameWindowUI(MineGame *game)
     this->face_button = NULL;
     this->mine_counter = NULL;
     this->time_counter = NULL;
+
+    this->winning_splash = NULL;
+    this->splash_timer = NULL;
 
     this->count_down_timer = NULL;
 
@@ -148,6 +166,12 @@ int MineGameWindowUI::CreateComponents()
     this->mine_grid->LoadResources();
     this->mine_grid->SetGameSize(this->game->GetWidth(), this->game->GetHeight());
 
+    this->winning_splash = new SplashScreen(this);
+    this->winning_splash->LoadResources();
+
+    // splash timer
+    this->splash_timer = new MineGameTimer();
+
     // timer
     this->count_down_timer = new MineGameTimer();
 
@@ -163,6 +187,16 @@ void MineGameWindowUI::DestroyComponents()
     if (this->count_down_timer != NULL) {
         delete this->count_down_timer;
         this->count_down_timer = NULL;
+    }
+
+    if (this->splash_timer != NULL) {
+        delete this->splash_timer;
+        this->splash_timer = NULL;
+    }
+
+    if (this->winning_splash != NULL) {
+        delete this->winning_splash;
+        this->winning_splash = NULL;
     }
 
     if (this->mine_grid != NULL) {
@@ -237,28 +271,52 @@ int MineGameWindowUI::DispatchEvent(SDL_Event *base_event)
     else if (SDL_USEREVENT <= base_event->type && base_event->type < SDL_LASTEVENT) {
         SDL_UserEvent *e = (SDL_UserEvent*)base_event;
 
-        //this->mine_counter->HandleUserEvent(e);
-        this->time_counter->IncreaseCount();
-        this->time_counter->Redraw();
-
+        this->HandleTimerEvent(e);
     }    
 
     MineGame::State new_state = this->game->GetGameState();
-    int new_flag_count = this->game->GetFlagCount();
     
+    // ready -> running
     if (old_state == MineGame::State::GAME_READY && new_state == MineGame::State::GAME_RUNNING) {
-        this->count_down_timer->Add(1);
-    } else if (new_state == MineGame::State::GAME_WON) {
+        this->count_down_timer->Add(1000);
+    }
+    // running -> won
+    else if (old_state == MineGame::State::GAME_RUNNING && new_state == MineGame::State::GAME_WON) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_WIN);
         this->count_down_timer->Remove();
-    } else if (new_state == MineGame::State::GAME_LOST) {
+        this->ShowWinningSplash();
+    }
+    // running -> lost
+    else if (old_state == MineGame::State::GAME_RUNNING && new_state == MineGame::State::GAME_LOST) {
         this->face_button->SetStatus(FaceButtonUI::STATUS_FACE_LOSE);
         this->count_down_timer->Remove();
     }
 
+    // update flag count
+    int new_flag_count = this->game->GetFlagCount();
+
     if (old_flag_count != new_flag_count) {
         this->mine_counter->SetCount(this->game->GetMineCount() - new_flag_count);
         this->mine_counter->Redraw();
+    }
+
+    return 0;
+}
+
+int MineGameWindowUI::HandleTimerEvent(SDL_UserEvent *e)
+{
+    if (e->type == this->count_down_timer->GetEventId()) {
+        this->time_counter->IncreaseCount();
+        this->time_counter->Redraw();
+    } else if (e->type == this->splash_timer->GetEventId()) {
+        Uint64 elapse = SDL_GetTicks64() - this->splash_timer->GetStartTick();
+
+        std::cout << "elapse = " << elapse << std::endl;
+        if (elapse < 3000) {
+            this->winning_splash->Update(elapse);
+        } else {
+            this->StopWinningSplash();
+        }
     }
 
     return 0;
@@ -293,8 +351,8 @@ SDL_Texture* MineGameWindowUI::LoadTextureFromFile(const char *path)
         return NULL;
     }
 
-    //SDL_SetTextureAlphaMod(texture, 0);
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureAlphaMod(texture, 255);
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
     SDL_FreeSurface(surface);
     SDL_RWclose(rw);
@@ -340,6 +398,8 @@ void MineGameWindowUI::GameReset()
     this->mine_counter->Redraw();
 
     this->count_down_timer->Remove();
+
+    this->StopWinningSplash();
 }
 
 void MineGameWindowUI::GameGetDirtyGrids(std::vector<MineGameGrid> &grids)
@@ -387,6 +447,23 @@ int MineGameWindowUI::CreateWindow()
     return 0;
 }
 
+int MineGameWindowUI::RedrawWindow()
+{
+    // set background to gray
+    SDL_SetRenderTarget(this->renderer, this->window_texture);
+    SDL_RenderClear(this->renderer);
+    SDL_SetRenderDrawColor(this->renderer, 0xC0, 0xC0, 0xC0, 0);
+    SDL_RenderFillRect(this->renderer, NULL);
+
+    // redraw components
+    this->mine_grid->Redraw();
+    this->time_counter->Redraw();
+    this->mine_counter->Redraw();
+    this->face_button->Redraw();
+
+    return 0;
+}
+
 int MineGameWindowUI::ResizeWindow()
 {
     int total_width, total_height;
@@ -418,18 +495,7 @@ int MineGameWindowUI::ResizeWindow()
     this->time_counter->SetLocation(total_width - WINDOWS_EDGE_MARGIN - this->time_counter->GetWidth(), WINDOWS_EDGE_MARGIN);
     this->face_button->SetLocation(((total_width - this->face_button->GetWidth()) / 2), WINDOWS_EDGE_MARGIN);
 
-    // set background to gray
-    SDL_SetRenderTarget(this->renderer, this->window_texture);
-    SDL_RenderClear(this->renderer);
-    SDL_SetRenderDrawColor(this->renderer, 0xC0, 0xC0, 0xC0, 0);
-    SDL_RenderFillRect(this->renderer, NULL);
-
-    // redraw components
-    this->mine_grid->Redraw();
-    this->time_counter->Redraw();
-    this->mine_counter->Redraw();
-    this->face_button->Redraw();
-
+    this->RedrawWindow();
     this->RefreshWindow();
 
     return 0;
@@ -485,6 +551,100 @@ int MineGameWindowUI::RefreshWindow()
     }
 
     return 0;
+}
+
+void MineGameWindowUI::ShowWinningSplash()
+{  
+    std::cout << "start winning splash" << std::endl;
+    // update at 20 FPS
+    this->splash_timer->Add(50);
+    this->winning_splash->Show();
+}
+
+void MineGameWindowUI::StopWinningSplash()
+{
+    std::cout << "stop winning splash" << std::endl;
+
+    this->winning_splash->Hide();
+    this->splash_timer->Remove();
+    this->RedrawWindow();
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+SplashScreen::SplashScreen(MineGameWindowUI *window)
+{
+    this->window = window;
+    this->texture = NULL;
+    this->alpha = 0;
+}
+
+SplashScreen::~SplashScreen()
+{
+    this->ReleaseResources();
+}
+
+void SplashScreen::SetLocation(int x, int y)
+{
+
+}
+
+int SplashScreen::LoadResources()
+{
+    this->texture = this->window->LoadTextureFromFile("./images/splash-win.png");
+    return 0;
+}
+
+void SplashScreen::ReleaseResources()
+{
+    if (this->texture != NULL) {
+        SDL_DestroyTexture(this->texture);
+        this->texture = NULL;
+    }
+}
+
+void SplashScreen::Show()
+{
+    SDL_Rect rect;
+
+    rect.x = 10;
+    rect.y = 10;
+
+    this->alpha = 0;
+
+    SDL_QueryTexture(this->texture, NULL, NULL, &rect.w, &rect.h);
+    SDL_SetTextureAlphaMod(this->texture, this->alpha);
+    this->window->UpdateWindowTexture(this->texture, &rect);
+}
+
+void SplashScreen::Update(Uint64 elapse_time_ms)
+{
+    SDL_Rect rect;
+    Uint64 a;
+
+    rect.x = 10;
+    rect.y = 10;
+
+    // 
+    a = elapse_time_ms * 255 / 3000;
+    this->alpha = (a > 255) ? 255 : (Uint32)a;
+
+    SDL_QueryTexture(this->texture, NULL, NULL, &rect.w, &rect.h);
+    SDL_SetTextureAlphaMod(this->texture, this->alpha);
+    this->window->UpdateWindowTexture(this->texture, &rect);
+}
+
+void SplashScreen::Hide()
+{
+    SDL_Rect rect;
+
+    rect.x = 10;
+    rect.y = 10;
+
+    this->alpha = 0;
+
+    SDL_QueryTexture(this->texture, NULL, NULL, &rect.w, &rect.h);
+    SDL_SetTextureAlphaMod(this->texture, alpha);
+    this->window->UpdateWindowTexture(this->texture, &rect);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
